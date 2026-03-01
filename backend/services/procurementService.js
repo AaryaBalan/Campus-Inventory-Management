@@ -1,0 +1,285 @@
+const { db } = require('../firebaseAdmin');
+const { v4: uuidv4 } = require('uuid');
+const auditService = require('./auditService');
+const alertService = require('./alertService');
+const { emit } = require('../websocket/wsServer');
+const { createError } = require('../middleware/errorHandler');
+
+const PR_COL = 'purchaseRequests';
+const AQ_COL = 'approvalQueues';
+
+// ─────────────────────────────────────────────
+// PURCHASE REQUEST LIFECYCLE
+// Draft → Submitted → Pending-DeptHead → Pending-Finance → Approved / Rejected
+// ─────────────────────────────────────────────
+
+async function createRequest(data, user) {
+    const requestId = `PR-${Date.now()}-${uuidv4().slice(0, 4).toUpperCase()}`;
+    const totalCost = data.items.reduce((sum, i) => sum + i.quantity * i.estimatedUnitCost, 0);
+
+    const pr = {
+        requestId,
+        requesterUserId: user.uid,
+        requesterName: user.name,
+        requesterDepartment: user.department || 'General',
+        ...data,
+        totalEstimatedCost: totalCost,
+        status: 'Draft',
+        approvals: [],
+        currentStage: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        submittedAt: null,
+        completedAt: null,
+        rejectionReason: null,
+        purchaseOrderId: null,
+    };
+
+    await db.collection(PR_COL).doc(requestId).set(pr);
+
+    await auditService.log({
+        userId: user.uid,
+        action: 'CREATE',
+        entityType: 'PurchaseRequest',
+        entityId: requestId,
+        details: `PR created with ${data.items.length} items, total ₹${totalCost.toFixed(2)}`,
+    });
+
+    return pr;
+}
+
+async function getRequest(requestId) {
+    const doc = await db.collection(PR_COL).doc(requestId).get();
+    if (!doc.exists) throw createError('Purchase request not found', 404);
+    return doc.data();
+}
+
+async function listRequests({ page = 1, limit = 20, status, priority, department, userId, dateFrom, dateTo } = {}) {
+    let query = db.collection(PR_COL).orderBy('createdAt', 'desc');
+    if (status) query = query.where('status', '==', status);
+    if (priority) query = query.where('priority', '==', priority);
+    if (department) query = query.where('requesterDepartment', '==', department);
+    if (userId) query = query.where('requesterUserId', '==', userId);
+    if (dateFrom) query = query.where('createdAt', '>=', dateFrom);
+    if (dateTo) query = query.where('createdAt', '<=', dateTo);
+
+    const snap = await query.limit(limit).offset((page - 1) * limit).get();
+    const totalSnap = await db.collection(PR_COL).count().get();
+    return { requests: snap.docs.map(d => d.data()), total: totalSnap.data().count, page, limit };
+}
+
+async function updateRequest(requestId, data, user) {
+    const pr = await getRequest(requestId);
+    if (pr.status !== 'Draft') throw createError('Only draft requests can be edited', 422);
+
+    const totalCost = (data.items || pr.items).reduce((sum, i) => sum + i.quantity * i.estimatedUnitCost, 0);
+    await db.collection(PR_COL).doc(requestId).update({
+        ...data,
+        totalEstimatedCost: totalCost,
+        updatedAt: new Date().toISOString(),
+    });
+}
+
+/**
+ * Submit a draft request → enters approval queue.
+ */
+async function submitRequest(requestId, user) {
+    const pr = await getRequest(requestId);
+    if (pr.status !== 'Draft') throw createError('Only draft requests can be submitted', 422);
+    if (pr.requesterUserId !== user.uid) throw createError('You can only submit your own requests', 403);
+
+    const nextStage = 'Pending-DeptHead';
+
+    await db.collection(PR_COL).doc(requestId).update({
+        status: nextStage,
+        currentStage: 'DeptHead',
+        submittedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+    });
+
+    // Create approval queue item for all Department Head users
+    await _createApprovalQueueItem(requestId, 'PurchaseRequest', pr.requesterDepartment, 'department', user);
+
+    await alertService.createAlert({
+        type: 'PendingApproval',
+        severity: pr.priority === 'Urgent' ? 'Critical' : 'Info',
+        message: `New purchase request ${requestId} awaiting dept. head approval`,
+        description: `Submitted by ${user.name}. Total: ₹${pr.totalEstimatedCost.toFixed(2)}`,
+    });
+
+    await auditService.log({
+        userId: user.uid,
+        action: 'SUBMIT',
+        entityType: 'PurchaseRequest',
+        entityId: requestId,
+        details: `PR submitted for approval (stage: ${nextStage})`,
+    });
+
+    emit('procurement', { event: 'PR_SUBMITTED', data: { requestId, status: nextStage } });
+    return { requestId, status: nextStage };
+}
+
+/**
+ * Approve a purchase request. Handles multi-stage workflow.
+ */
+async function approveRequest(requestId, { comments }, user) {
+    const pr = await getRequest(requestId);
+    _assertCanApprove(pr, user);
+
+    const approval = {
+        approvalId: uuidv4(),
+        userId: user.uid,
+        userName: user.name,
+        role: user.role,
+        action: 'Approved',
+        comments: comments || null,
+        timestamp: new Date().toISOString(),
+        stage: pr.currentStage,
+    };
+
+    let nextStatus, nextStage;
+
+    if (pr.currentStage === 'DeptHead') {
+        nextStatus = 'Pending-Finance';
+        nextStage = 'Finance';
+        await _createApprovalQueueItem(requestId, 'PurchaseRequest', null, 'finance', user);
+    } else if (pr.currentStage === 'Finance') {
+        nextStatus = 'Approved';
+        nextStage = null;
+        // In prod: generate PO here
+    } else {
+        throw createError('Invalid approval stage', 422);
+    }
+
+    await db.collection(PR_COL).doc(requestId).update({
+        status: nextStatus,
+        currentStage: nextStage,
+        approvals: [...pr.approvals, approval],
+        completedAt: nextStatus === 'Approved' ? new Date().toISOString() : null,
+        updatedAt: new Date().toISOString(),
+    });
+
+    await _closeQueueItem(requestId, user);
+
+    await auditService.log({
+        userId: user.uid,
+        action: 'APPROVE',
+        entityType: 'PurchaseRequest',
+        entityId: requestId,
+        details: `PR approved at stage '${pr.currentStage}'. New status: ${nextStatus}`,
+    });
+
+    emit('procurement', { event: 'PR_STATUS_CHANGED', data: { requestId, status: nextStatus, approvedBy: user.uid } });
+    return { requestId, status: nextStatus };
+}
+
+/**
+ * Reject a purchase request.
+ */
+async function rejectRequest(requestId, { reason, comments }, user) {
+    const pr = await getRequest(requestId);
+    _assertCanApprove(pr, user);
+
+    const approval = {
+        approvalId: uuidv4(),
+        userId: user.uid,
+        userName: user.name,
+        role: user.role,
+        action: 'Rejected',
+        reason,
+        comments: comments || null,
+        timestamp: new Date().toISOString(),
+        stage: pr.currentStage,
+    };
+
+    await db.collection(PR_COL).doc(requestId).update({
+        status: 'Rejected',
+        currentStage: null,
+        rejectionReason: reason,
+        approvals: [...pr.approvals, approval],
+        completedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+    });
+
+    await _closeQueueItem(requestId, user);
+
+    await auditService.log({
+        userId: user.uid,
+        action: 'REJECT',
+        entityType: 'PurchaseRequest',
+        entityId: requestId,
+        details: `PR rejected. Reason: ${reason}`,
+    });
+
+    emit('procurement', { event: 'PR_STATUS_CHANGED', data: { requestId, status: 'Rejected', rejectedBy: user.uid } });
+    return { requestId, status: 'Rejected' };
+}
+
+async function getApprovalHistory(requestId) {
+    const pr = await getRequest(requestId);
+    return pr.approvals || [];
+}
+
+// ── Approval Queue ─────────────────────────────────────────────────────────
+
+async function getApprovalQueue(user) {
+    let query = db.collection(AQ_COL).where('status', '==', 'Pending');
+    if (user.role === 'department') {
+        query = query.where('targetRole', '==', 'department').where('targetDepartment', '==', user.department);
+    } else if (user.role === 'finance') {
+        query = query.where('targetRole', '==', 'finance');
+    } else if (user.role === 'admin') {
+        // admin sees all pending
+    }
+    const snap = await query.orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => d.data());
+}
+
+// ── Internal helpers ───────────────────────────────────────────────────────
+
+async function _createApprovalQueueItem(requestId, requestType, department, role, user) {
+    const queueId = uuidv4();
+    const item = {
+        queueId,
+        requestId,
+        requestType,
+        targetRole: role,
+        targetDepartment: department || null,
+        status: 'Pending',
+        priority: 'Medium',
+        createdAt: new Date().toISOString(),
+        createdBy: user.uid,
+        dueDate: new Date(Date.now() + 48 * 3600000).toISOString(), // 48h SLA
+        actionTaken: null,
+        actionAt: null,
+        comments: null,
+    };
+    await db.collection(AQ_COL).doc(queueId).set(item);
+}
+
+async function _closeQueueItem(requestId, user) {
+    const snap = await db.collection(AQ_COL).where('requestId', '==', requestId).where('status', '==', 'Pending').get();
+    const batch = db.batch();
+    snap.docs.forEach(doc => {
+        batch.update(doc.ref, { status: 'Closed', actionAt: new Date().toISOString(), closedBy: user.uid });
+    });
+    await batch.commit();
+}
+
+function _assertCanApprove(pr, user) {
+    const allowedStatuses = {
+        department: ['Pending-DeptHead'],
+        finance: ['Pending-Finance'],
+        admin: ['Pending-DeptHead', 'Pending-Finance'],
+    };
+    const allowed = allowedStatuses[user.role] || [];
+    if (!allowed.includes(pr.status)) {
+        throw createError(`Cannot approve/reject PR in status '${pr.status}' with role '${user.role}'`, 403);
+    }
+}
+
+module.exports = {
+    createRequest, getRequest, listRequests, updateRequest,
+    submitRequest, approveRequest, rejectRequest,
+    getApprovalHistory, getApprovalQueue,
+};

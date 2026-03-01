@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp, ROLES } from '../../context/AppContext.jsx';
-import { Shield, BarChart2, Package, Warehouse, User, TrendingUp, Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { Shield, BarChart2, Package, Warehouse, TrendingUp, Lock, Mail, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 const roleCards = [
-    { role: ROLES.ADMIN, icon: Shield, color: 'zinc', desc: 'Full system access', name: 'Admin User' },
-    { role: ROLES.FINANCE, icon: BarChart2, color: 'green', desc: 'Financial oversight', name: 'Finance Manager' },
-    { role: ROLES.INVENTORY, icon: Warehouse, color: 'amber', desc: 'Stock management', name: 'Inventory Manager' },
-    { role: ROLES.DEPARTMENT, icon: Package, color: 'purple', desc: 'Dept. assets & requests', name: 'Dr. Patel' },
-    { role: ROLES.AUDITOR, icon: Shield, color: 'red', desc: 'Audit & compliance', name: 'Senior Auditor' },
-    { role: ROLES.EXECUTIVE, icon: TrendingUp, color: 'slate', desc: 'Executive KPIs', name: 'Director' },
+    { role: ROLES.ADMIN, icon: Shield, color: 'zinc', desc: 'Full system access', email: 'admin@campus.edu' },
+    { role: ROLES.FINANCE, icon: BarChart2, color: 'green', desc: 'Financial oversight', email: 'finance@campus.edu' },
+    { role: ROLES.INVENTORY, icon: Warehouse, color: 'amber', desc: 'Stock management', email: 'inventory@campus.edu' },
+    { role: ROLES.DEPARTMENT, icon: Package, color: 'purple', desc: 'Dept. assets & requests', email: 'head@campus.edu' },
+    { role: ROLES.AUDITOR, icon: Shield, color: 'red', desc: 'Audit & compliance', email: 'auditor@campus.edu' },
+    { role: ROLES.EXECUTIVE, icon: TrendingUp, color: 'slate', desc: 'Executive KPIs', email: 'director@campus.edu' },
 ];
 
 const colorMap = {
@@ -23,20 +23,45 @@ const colorMap = {
 
 export default function LoginPage() {
     const [selectedRole, setSelectedRole] = useState(null);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [showPass, setShowPass] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
     const { login, getDashboardRoute } = useApp();
     const navigate = useNavigate();
 
-    const handleLogin = (e) => {
+    // When a role card is clicked, auto-fill the email for that role
+    const handleRoleSelect = (role) => {
+        setSelectedRole(role);
+        setError('');
+        const card = roleCards.find(r => r.role === role);
+        if (card) setEmail(card.email);
+    };
+
+    const handleLogin = async (e) => {
         e.preventDefault();
-        if (!selectedRole) return;
+        if (!email || !password) { setError('Enter your email and password.'); return; }
         setLoading(true);
-        const card = roleCards.find(r => r.role === selectedRole);
-        setTimeout(() => {
-            login(selectedRole, card?.name || 'User');
-            navigate(getDashboardRoute(selectedRole));
-        }, 800);
+        setError('');
+        try {
+            await login(email.trim(), password);
+            // currentUser will be updated by onAuthStateChanged; role is in custom claims
+            // Navigate after a tick so AppContext has time to set currentUser
+            // The role-based route is derived from the custom claim returned by Firebase
+            navigate('/');
+        } catch (err) {
+            const msgs = {
+                'auth/user-not-found': 'No account found with this email.',
+                'auth/wrong-password': 'Incorrect password. Try again.',
+                'auth/invalid-credential': 'Invalid email or password.',
+                'auth/too-many-requests': 'Too many failed attempts. Try again later.',
+                'auth/user-disabled': 'This account has been disabled.',
+            };
+            setError(msgs[err.code] || 'Sign-in failed. Please try again.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -91,7 +116,7 @@ export default function LoginPage() {
                                 return (
                                     <button
                                         key={role}
-                                        onClick={() => setSelectedRole(role)}
+                                        onClick={() => handleRoleSelect(role)}
                                         className={`p-3 rounded-xl border text-center transition-all duration-200 cursor-pointer
                       ${isSelected ? c.selected + ' border-2' : c.bg}`}
                                     >
@@ -106,20 +131,37 @@ export default function LoginPage() {
 
                     {/* Login form */}
                     <form onSubmit={handleLogin} className="space-y-4">
+                        {/* Error banner */}
+                        {error && (
+                            <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+                                <AlertCircle size={15} className="text-red-400 shrink-0" />
+                                <p className="text-red-400 text-xs">{error}</p>
+                            </div>
+                        )}
                         <div>
                             <label className="text-zinc-400 text-xs font-medium mb-1.5 block">Email Address</label>
                             <div className="relative">
                                 <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
-                                <input type="email" defaultValue="admin@campus.edu"
-                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-all" />
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={e => setEmail(e.target.value)}
+                                    placeholder="you@campus.edu"
+                                    autoComplete="email"
+                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-all" />
                             </div>
                         </div>
                         <div>
                             <label className="text-zinc-400 text-xs font-medium mb-1.5 block">Password</label>
                             <div className="relative">
                                 <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
-                                <input type={showPass ? 'text' : 'password'} defaultValue="••••••••"
-                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl pl-10 pr-10 py-3 text-sm text-white focus:outline-none focus:border-zinc-500 transition-all" />
+                                <input
+                                    type={showPass ? 'text' : 'password'}
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    autoComplete="current-password"
+                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl pl-10 pr-10 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-all" />
                                 <button type="button" onClick={() => setShowPass(v => !v)}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors">
                                     {showPass ? <EyeOff size={15} /> : <Eye size={15} />}

@@ -29,13 +29,13 @@ const ProtectedRoute = ({ children }) => {
 };
 
 export default function App() {
-  const { currentUser } = useApp();
+  const { currentUser, getDashboardRoute } = useApp();
 
   return (
     <div className="min-h-screen bg-[#0e0e11] text-slate-100 dark:bg-[#0e0e11] dark:text-slate-100">
       <Routes>
-        <Route path="/login" element={currentUser ? <Navigate to="/dashboard/admin" replace /> : <LoginPage />} />
-        <Route path="/" element={<Navigate to={currentUser ? '/dashboard/admin' : '/login'} replace />} />
+        <Route path="/login" element={currentUser ? <Navigate to={getDashboardRoute(currentUser.role)} replace /> : <LoginPage />} />
+        <Route path="/" element={<Navigate to={currentUser ? getDashboardRoute(currentUser.role) : '/login'} replace />} />
 
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route path="dashboard/admin" element={<AdminDashboard />} />
