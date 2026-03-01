@@ -107,7 +107,8 @@ export default function ApprovalQueue() {
         !['approved', 'rejected', 'Approved', 'Rejected'].includes(r.status)
     );
 
-    const canApprove = ['admin', 'finance', 'department'].includes(currentUser?.role);
+    // AppContext stores display names: 'Admin', 'Finance', 'Department Head'
+    const canApprove = ['Admin', 'Finance', 'Department Head'].includes(currentUser?.role);
 
     const handleAction = async (norm, action) => {
         if (norm._isMock) {
@@ -193,22 +194,30 @@ export default function ApprovalQueue() {
                                     )}
                                 </div>
 
-                                {isPending && canApprove && (
-                                    <div className="flex gap-2 shrink-0">
-                                        <button
-                                            onClick={() => handleAction(norm, 'approve')}
-                                            disabled={isActing}
-                                            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-3.5 py-2 rounded-xl text-sm font-medium transition-colors">
-                                            {isActing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={15} />} Approve
-                                        </button>
-                                        <button
-                                            onClick={() => handleAction(norm, 'reject')}
-                                            disabled={isActing}
-                                            className="flex items-center gap-1.5 bg-red-600/80 hover:bg-red-600 disabled:opacity-50 text-white px-3.5 py-2 rounded-xl text-sm font-medium transition-colors">
-                                            {isActing ? <Loader2 size={14} className="animate-spin" /> : <X size={15} />} Reject
-                                        </button>
-                                    </div>
-                                )}
+                                {isPending && !norm._isMock && (() => {
+                                    const role = currentUser?.role;
+                                    const s = norm.status;
+                                    return (
+                                        role === 'Admin' ||
+                                        (role === 'Department Head' && s === 'Pending-DeptHead') ||
+                                        (role === 'Finance' && s === 'Pending-Finance')
+                                    );
+                                })() && (
+                                        <div className="flex gap-2 shrink-0">
+                                            <button
+                                                onClick={() => handleAction(norm, 'approve')}
+                                                disabled={isActing}
+                                                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-3.5 py-2 rounded-xl text-sm font-medium transition-colors">
+                                                {isActing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={15} />} Approve
+                                            </button>
+                                            <button
+                                                onClick={() => handleAction(norm, 'reject')}
+                                                disabled={isActing}
+                                                className="flex items-center gap-1.5 bg-red-600/80 hover:bg-red-600 disabled:opacity-50 text-white px-3.5 py-2 rounded-xl text-sm font-medium transition-colors">
+                                                {isActing ? <Loader2 size={14} className="animate-spin" /> : <X size={15} />} Reject
+                                            </button>
+                                        </div>
+                                    )}
                             </div>
 
                             {/* Approval stage pipeline */}
@@ -221,8 +230,8 @@ export default function ApprovalQueue() {
                                                     stage.status === 'rejected' ? 'bg-red-500/10 border-red-500/30' :
                                                         'bg-zinc-900 border-zinc-800'}`}>
                                             <span className={`text-[10px] font-semibold ${stage.status === 'done' ? 'text-emerald-400' :
-                                                    stage.status === 'active' ? 'text-zinc-300' :
-                                                        stage.status === 'rejected' ? 'text-red-400' : 'text-slate-500'}`}>
+                                                stage.status === 'active' ? 'text-zinc-300' :
+                                                    stage.status === 'rejected' ? 'text-red-400' : 'text-slate-500'}`}>
                                                 {stage.name}
                                             </span>
                                             {stage.date && <span className="text-[9px] text-slate-500 mt-0.5">{stage.date}</span>}

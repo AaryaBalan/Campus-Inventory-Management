@@ -60,4 +60,10 @@ router.get('/verify', authenticate, async (req, res, next) => {
     } catch (e) { next(e); }
 });
 
+// GET /api/auth/me  — Returns the current user's resolved profile (role from Firestore)
+router.get('/me', authenticate, (req, res) => {
+    res.json({ user: req.user });
+});
+
 module.exports = router;
+

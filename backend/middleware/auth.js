@@ -28,7 +28,21 @@ async function authenticate(req, res, next) {
         // 2️⃣ Fall back to Firestore users collection when claims aren't set
         if (!role) {
             try {
-                const snap = await db.collection('users').doc(decoded.uid).get();
+                // First try by UID
+                let snap = await db.collection('users').doc(decoded.uid).get();
+
+                // If not found by UID, try by email (handles email-seeded docs)
+                if (!snap.exists && decoded.email) {
+                    const emailId = decoded.email.replace(/[^a-zA-Z0-9]/g, '_');
+                    snap = await db.collection('users').doc(emailId).get();
+
+                    // Also try a Firestore query by email field as last resort
+                    if (!snap.exists) {
+                        const q = await db.collection('users').where('email', '==', decoded.email).limit(1).get();
+                        if (!q.empty) snap = q.docs[0];
+                    }
+                }
+
                 if (snap.exists) {
                     const data = snap.data();
                     role = data.role || null;
@@ -42,7 +56,7 @@ async function authenticate(req, res, next) {
         req.user = {
             uid: decoded.uid,
             email: decoded.email,
-            role: role || 'department',
+            role: (role || 'department').toLowerCase(),   // normalize — Firestore may store mixed case
             department: department,
             name: decoded.name || decoded.email,
         };
@@ -77,7 +91,7 @@ async function optionalAuthenticate(req, res, next) {
         req.user = {
             uid: decoded.uid,
             email: decoded.email,
-            role: role || 'department',
+            role: (role || 'department').toLowerCase(),   // normalize — Firestore may store mixed case
             department: department,
             name: decoded.name || decoded.email,
         };

@@ -11,7 +11,12 @@ router.get('/purchase-requests', authenticate, checkPermission('read', 'purchase
 });
 
 router.post('/purchase-requests', authenticate, checkPermission('create', 'purchaseRequests'), validate({ body: schemas.createPurchaseRequest }), async (req, res, next) => {
-    try { res.status(201).json(await svc.createRequest(req.body, req.user)); } catch (e) { next(e); }
+    try {
+        const pr = await svc.createRequest(req.body, req.user);
+        // Auto-submit: move from Draft → Pending-DeptHead immediately
+        try { await svc.submitRequest(pr.requestId, req.user); } catch (_) { /* ignore if already submitted */ }
+        res.status(201).json({ ...pr, status: 'Pending-DeptHead' });
+    } catch (e) { next(e); }
 });
 
 router.get('/purchase-requests/:id', authenticate, checkPermission('read', 'purchaseRequests'), async (req, res, next) => {

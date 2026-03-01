@@ -6,7 +6,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
  * Core fetch wrapper — attaches the current user's Firebase ID token automatically.
  * Throws a structured error on non-2xx responses.
  */
-async function request(path, options = {}) {
+async function request(path, options = {}, timeoutMs = 15000) {
     const headers = { 'Content-Type': 'application/json', ...options.headers };
 
     // Attach auth token if a user is signed in
@@ -15,20 +15,36 @@ async function request(path, options = {}) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+    // Abort after timeoutMs so the UI never hangs forever
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    if (!res.ok) {
-        let errBody;
-        try { errBody = await res.json(); } catch (_) { errBody = {}; }
-        const err = new Error(errBody.error || `Request failed: ${res.status}`);
-        err.status = res.status;
-        err.details = errBody.details;
+    try {
+        const res = await fetch(`${BASE_URL}${path}`, {
+            ...options,
+            headers,
+            signal: controller.signal,
+        });
+
+        if (!res.ok) {
+            let errBody;
+            try { errBody = await res.json(); } catch (_) { errBody = {}; }
+            const err = new Error(errBody.error || `Request failed: ${res.status}`);
+            err.status = res.status;
+            err.details = errBody.details;
+            throw err;
+        }
+
+        if (res.status === 204) return null;
+        return res.json();
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            throw new Error('Request timed out — the server took too long to respond');
+        }
         throw err;
+    } finally {
+        clearTimeout(timer);
     }
-
-    // Return null for 204 No Content
-    if (res.status === 204) return null;
-    return res.json();
 }
 
 // ── Convenience methods ─────────────────────────────────────────────────────

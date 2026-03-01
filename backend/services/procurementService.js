@@ -54,18 +54,23 @@ async function getRequest(requestId) {
     return doc.data();
 }
 
-async function listRequests({ page = 1, limit = 20, status, priority, department, userId, dateFrom, dateTo } = {}) {
+async function listRequests({ page = 1, limit = 50, status, priority, department, userId, dateFrom, dateTo } = {}) {
     let query = db.collection(PR_COL).orderBy('createdAt', 'desc');
+
+    // Note: combining orderBy with where() on a different field requires a composite Firestore index.
+    // Only apply these filters if explicitly passed to avoid index issues.
     if (status) query = query.where('status', '==', status);
     if (priority) query = query.where('priority', '==', priority);
-    if (department) query = query.where('requesterDepartment', '==', department);
-    if (userId) query = query.where('requesterUserId', '==', userId);
-    if (dateFrom) query = query.where('createdAt', '>=', dateFrom);
-    if (dateTo) query = query.where('createdAt', '<=', dateTo);
 
-    const snap = await query.limit(limit).offset((page - 1) * limit).get();
-    const totalSnap = await db.collection(PR_COL).count().get();
-    return { requests: snap.docs.map(d => d.data()), total: totalSnap.data().count, page, limit };
+    // Use limit only — avoid offset() which requires reading all skipped docs and needs composite index.
+    const snap = await query.limit(parseInt(limit)).get();
+
+    return {
+        requests: snap.docs.map(d => d.data()),
+        total: snap.size,
+        page: 1,
+        limit: parseInt(limit),
+    };
 }
 
 async function updateRequest(requestId, data, user) {

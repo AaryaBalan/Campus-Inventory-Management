@@ -48,21 +48,47 @@ export const AppProvider = ({ children }) => {
 
     // ── Listen for Firebase auth state changes ──────────────────────────────
     useEffect(() => {
+        const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
         const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
-                // Force-refresh token to get latest custom claims
-                const tokenResult = await firebaseUser.getIdTokenResult(true);
-                const claims = tokenResult.claims;
-                const claimRole = (claims.role || 'admin').toLowerCase();
-                const displayRole = CLAIM_TO_ROLE[claimRole] || 'Admin';
+                // Get a fresh ID token to attach to all requests
+                const token = await firebaseUser.getIdToken(true);
+
+                // Fetch real role from backend (Firestore-backed) instead of custom claims
+                // This is needed because Identity Toolkit API is disabled, so custom claims can't be set.
+                let backendRole = null;
+                let backendName = null;
+                let backendDept = null;
+                try {
+                    const res = await fetch(`${BASE_URL}/auth/me`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        backendRole = data.user?.role || null;
+                        backendName = data.user?.name || null;
+                        backendDept = data.user?.department || null;
+                    }
+                } catch (_) {
+                    // Backend unreachable — fall back to claims
+                }
+
+                // Normalize backend role (lowercase) to display name, fallback to claims
+                const resolvedRoleLower = backendRole
+                    ? backendRole.toLowerCase()
+                    : null;
+                const displayRole = resolvedRoleLower
+                    ? (CLAIM_TO_ROLE[resolvedRoleLower] || 'Admin')
+                    : 'Admin';
 
                 setCurrentUser({
                     uid: firebaseUser.uid,
                     email: firebaseUser.email,
-                    name: firebaseUser.displayName || firebaseUser.email,
+                    name: backendName || firebaseUser.displayName || firebaseUser.email,
                     role: displayRole,
-                    department: claims.department || null,
-                    avatar: (firebaseUser.displayName || firebaseUser.email || 'U')
+                    department: backendDept || null,
+                    avatar: ((backendName || firebaseUser.displayName || firebaseUser.email || 'U'))
                         .split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
                 });
             } else {
