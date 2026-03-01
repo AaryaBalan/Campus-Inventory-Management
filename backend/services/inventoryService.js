@@ -2,6 +2,7 @@ const { db } = require('../firebaseAdmin');
 const { v4: uuidv4 } = require('uuid');
 const auditService = require('./auditService');
 const alertService = require('./alertService');
+const notificationService = require('./notificationService');
 const { emit } = require('../websocket/wsServer');
 const { createError } = require('../middleware/errorHandler');
 
@@ -42,13 +43,13 @@ async function getItem(inventoryId) {
     return doc.data();
 }
 
-async function listItems({ page = 1, limit = 20, status, category, search } = {}) {
+async function listItems({ limit = 100, status, category, search } = {}) {
     let query = db.collection(INV_COL);
     if (status) query = query.where('status', '==', status);
     if (category) query = query.where('category', '==', category);
     query = query.orderBy('lastUpdated', 'desc');
 
-    const snapshot = await query.limit(limit).offset((page - 1) * limit).get();
+    const snapshot = await query.limit(parseInt(limit)).get();
     let items = snapshot.docs.map(d => d.data());
 
     if (search) {
@@ -59,8 +60,7 @@ async function listItems({ page = 1, limit = 20, status, category, search } = {}
         );
     }
 
-    const totalSnap = await db.collection(INV_COL).count().get();
-    return { items, total: totalSnap.data().count, page, limit };
+    return { items, total: items.length };
 }
 
 async function updateItem(inventoryId, data, user) {
@@ -115,7 +115,7 @@ async function adjustStock(inventoryId, { type, quantity, reason, referenceId, n
         movedAt: new Date().toISOString(),
     });
 
-    // Fire alert if stock went Critical / Low
+    // Fire alert and notification if stock went Critical / Low
     if (newStatus !== item.status && (newStatus === 'Critical' || newStatus === 'Low')) {
         await alertService.createAlert({
             type: 'LowStock',
@@ -124,6 +124,11 @@ async function adjustStock(inventoryId, { type, quantity, reason, referenceId, n
             message: `${item.itemName} stock is ${newStatus.toLowerCase()} (${newQty} ${item.unit} remaining)`,
             description: `Reorder level: ${item.reorderLevel} ${item.unit}. Current: ${newQty} ${item.unit}.`,
         });
+        // Send in-app notification to inventory managers and admins
+        notificationService.notifyLowStock(
+            { itemName: item.itemName, currentQuantity: newQty, unit: item.unit },
+            newStatus === 'Critical' ? 'critical' : 'low'
+        ).catch(() => { });
     }
 
     emit('dashboard', { event: 'STOCK_UPDATED', data: { inventoryId, newQuantity: newQty, status: newStatus } });

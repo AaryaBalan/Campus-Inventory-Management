@@ -2,6 +2,7 @@ const { db } = require('../firebaseAdmin');
 const { v4: uuidv4 } = require('uuid');
 const auditService = require('./auditService');
 const alertService = require('./alertService');
+const notificationService = require('./notificationService');
 const { emit } = require('../websocket/wsServer');
 const { createError } = require('../middleware/errorHandler');
 
@@ -120,6 +121,9 @@ async function submitRequest(requestId, user) {
         details: `PR submitted for approval (stage: ${nextStage})`,
     });
 
+    // Notify department heads and admins
+    notificationService.notifyProcurement('submitted', { ...pr, requestId }).catch(() => { });
+
     emit('procurement', { event: 'PR_SUBMITTED', data: { requestId, status: nextStage } });
     return { requestId, status: nextStage };
 }
@@ -174,6 +178,13 @@ async function approveRequest(requestId, { comments }, user) {
         details: `PR approved at stage '${pr.currentStage}'. New status: ${nextStatus}`,
     });
 
+    // Notify requester when fully approved, or finance when moving to finance stage
+    if (nextStatus === 'Approved') {
+        notificationService.notifyProcurement('approved', { ...pr, requestId }).catch(() => { });
+    } else if (nextStatus === 'Pending-Finance') {
+        notificationService.notifyProcurement('pending_finance', { ...pr, requestId }).catch(() => { });
+    }
+
     emit('procurement', { event: 'PR_STATUS_CHANGED', data: { requestId, status: nextStatus, approvedBy: user.uid } });
     return { requestId, status: nextStatus };
 }
@@ -217,6 +228,8 @@ async function rejectRequest(requestId, { reason, comments }, user) {
     });
 
     emit('procurement', { event: 'PR_STATUS_CHANGED', data: { requestId, status: 'Rejected', rejectedBy: user.uid } });
+    // Notify requester of rejection
+    notificationService.notifyProcurement('rejected', { ...pr, requestId }).catch(() => { });
     return { requestId, status: 'Rejected' };
 }
 

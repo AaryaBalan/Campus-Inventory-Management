@@ -40,4 +40,24 @@ router.get('/predictions/demand-forecast', authenticate, checkPermission('read',
     try { res.json(await predictiveSvc.getDemandForecast()); } catch (e) { next(e); }
 });
 
+// ── Manual triggers (admin only) ──────────────────────────────────────────
+
+// POST /analytics/snapshot — persist a daily analytics snapshot now
+router.post('/analytics/snapshot', authenticate, checkPermission('*', '*'), async (req, res, next) => {
+    try {
+        await analyticsSvc.persistMetricsSnapshot();
+        res.json({ message: 'Analytics snapshot persisted', timestamp: new Date().toISOString() });
+    } catch (e) { next(e); }
+});
+
+// POST /analytics/low-stock-check — manually trigger stock level alert scan
+router.post('/analytics/low-stock-check', authenticate, checkPermission('*', '*'), async (req, res, next) => {
+    try {
+        const { checkStockLevels } = require('../functions/scheduledAlerts');
+        await checkStockLevels();
+        res.json({ message: 'Stock level check completed', timestamp: new Date().toISOString() });
+    } catch (e) { next(e); }
+});
+
 module.exports = router;
+

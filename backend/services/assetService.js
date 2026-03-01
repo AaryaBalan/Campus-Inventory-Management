@@ -77,7 +77,7 @@ async function getAsset(assetId) {
 /**
  * List assets with filtering, search, and pagination.
  */
-async function listAssets({ page = 1, limit = 20, search, category, status, department, health, sortBy = 'createdAt', sortOrder = 'desc' } = {}) {
+async function listAssets({ limit = 100, search, category, status, department, health, sortBy = 'createdAt', sortOrder = 'desc' } = {}) {
     let query = db.collection(ASSETS_COL);
 
     if (category) query = query.where('category', '==', category);
@@ -87,7 +87,7 @@ async function listAssets({ page = 1, limit = 20, search, category, status, depa
 
     query = query.orderBy(sortBy, sortOrder);
 
-    const snapshot = await query.limit(limit).offset((page - 1) * limit).get();
+    const snapshot = await query.limit(parseInt(limit)).get();
     let assets = snapshot.docs.map(d => d.data());
 
     // In-memory search (Firestore full-text search requires Algolia/Typesense in prod)
@@ -101,8 +101,7 @@ async function listAssets({ page = 1, limit = 20, search, category, status, depa
         );
     }
 
-    const totalSnap = await db.collection(ASSETS_COL).count().get();
-    return { assets, total: totalSnap.data().count, page, limit };
+    return { assets, total: assets.length };
 }
 
 /**

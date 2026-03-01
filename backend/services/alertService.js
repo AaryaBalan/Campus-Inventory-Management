@@ -47,19 +47,16 @@ async function getAlert(alertId) {
 /**
  * List alerts with filters.
  */
-async function listAlerts({ page = 1, limit = 20, status, severity, type } = {}) {
+async function listAlerts({ limit = 50, status, severity, type } = {}) {
     let query = db.collection(ALERTS_COL).orderBy('createdAt', 'desc');
     if (status) query = query.where('status', '==', status);
     if (severity) query = query.where('severity', '==', severity);
     if (type) query = query.where('type', '==', type);
 
-    const snap = await query.limit(limit).offset((page - 1) * limit).get();
-    const totalSnap = await db.collection(ALERTS_COL).count().get();
+    const snap = await query.limit(parseInt(limit)).get();
     return {
         alerts: snap.docs.map(d => d.data()),
-        total: totalSnap.data().count,
-        page,
-        limit,
+        total: snap.size,
     };
 }
 

@@ -109,27 +109,37 @@ async function deactivate(targetUid, callerUid) {
 /**
  * Get user document from Firestore.
  */
-async function getUser(uid) {
-    const doc = await db.collection(USERS_COL).doc(uid).get();
-    if (!doc.exists) throw Object.assign(new Error('User not found'), { statusCode: 404 });
+async function getUser(uid, email = null) {
+    // Try by UID first
+    let doc = await db.collection(USERS_COL).doc(uid).get();
+
+    // Fall back to email-based doc ID (docs seeded via seedUsers.js before real UID was available)
+    if (!doc.exists && email) {
+        const emailId = email.replace(/[^a-zA-Z0-9]/g, '_');
+        doc = await db.collection(USERS_COL).doc(emailId).get();
+    }
+
+    // Last resort: query by email field
+    if (!doc.exists && email) {
+        const q = await db.collection(USERS_COL).where('email', '==', email).limit(1).get();
+        if (!q.empty) doc = q.docs[0];
+    }
+
+    if (!doc || !doc.exists) throw Object.assign(new Error('User not found'), { statusCode: 404 });
     return doc.data();
 }
 
 /**
  * List all users (admin only) with optional pagination.
  */
-async function listUsers({ page = 1, limit = 20, role } = {}) {
+async function listUsers({ limit = 100, role } = {}) {
     let query = db.collection(USERS_COL).orderBy('createdAt', 'desc');
     if (role) query = query.where('role', '==', role);
 
-    const snapshot = await query.limit(limit).offset((page - 1) * limit).get();
-    const countSnap = await (role ? db.collection(USERS_COL).where('role', '==', role) : db.collection(USERS_COL)).count().get();
-
+    const snapshot = await query.limit(parseInt(limit)).get();
     return {
         users: snapshot.docs.map(d => d.data()),
-        total: countSnap.data().count,
-        page,
-        limit,
+        total: snapshot.size,
     };
 }
 

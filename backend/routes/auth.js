@@ -55,7 +55,12 @@ router.post('/logout', authenticate, async (req, res, next) => {
 // GET /api/auth/verify  — Verify token and return current user info
 router.get('/verify', authenticate, async (req, res, next) => {
     try {
-        const profile = await authService.getUser(req.user.uid);
+        let profile;
+        try {
+            profile = await authService.getUser(req.user.uid, req.user.email);
+        } catch (_) {
+            profile = req.user;
+        }
         res.json({ valid: true, user: profile });
     } catch (e) { next(e); }
 });

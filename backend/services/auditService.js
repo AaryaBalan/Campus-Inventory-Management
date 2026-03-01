@@ -48,8 +48,7 @@ async function log({ userId, action, entityType, entityId, entityData, details, 
  * Get audit logs with advanced filtering and pagination.
  */
 async function getLogs({
-    page = 1,
-    limit = 50,
+    limit = 100,
     userId,
     entityType,
     entityId,
@@ -57,19 +56,21 @@ async function getLogs({
     dateFrom,
     dateTo,
 } = {}) {
-    let query = db.collection(AUDIT_COL).orderBy('timestamp', 'desc');
+    // Use simple orderBy only — avoid composite indexes by filtering in-memory
+    let query = db.collection(AUDIT_COL).orderBy('timestamp', 'desc').limit(parseInt(limit));
 
-    if (userId) query = query.where('userId', '==', userId);
-    if (entityType) query = query.where('entityType', '==', entityType);
-    if (entityId) query = query.where('entityId', '==', entityId);
-    if (action) query = query.where('action', '==', action);
-    if (dateFrom) query = query.where('timestamp', '>=', dateFrom);
-    if (dateTo) query = query.where('timestamp', '<=', dateTo);
+    const snap = await query.get();
+    let logs = snap.docs.map(d => d.data());
 
-    const snap = await query.limit(limit).offset((page - 1) * limit).get();
-    const logs = snap.docs.map(d => d.data());
+    // In-memory filtering (avoids Firestore composite index requirement)
+    if (userId) logs = logs.filter(l => l.userId === userId);
+    if (entityType) logs = logs.filter(l => l.entityType === entityType);
+    if (entityId) logs = logs.filter(l => l.entityId === entityId);
+    if (action) logs = logs.filter(l => l.action === action);
+    if (dateFrom) logs = logs.filter(l => l.timestamp >= dateFrom);
+    if (dateTo) logs = logs.filter(l => l.timestamp <= dateTo);
 
-    return { logs, page, limit };
+    return { logs, total: logs.length, limit };
 }
 
 /**
