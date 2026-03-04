@@ -10,6 +10,7 @@ router.use('/', require('./analytics'));      // mounts /analytics & /prediction
 router.use('/locations', require('./locations'));
 router.use('/users', require('./users'));
 router.use('/notifications', require('./notifications'));
+router.use('/bills', require('./bills'));
 
 // 404 fallback for unmatched API routes
 router.use((req, res) => {

@@ -129,4 +129,65 @@ export const locationsApi = {
     assets: (id) => api.get(`/locations/${id}/assets`),
 };
 
+export const notificationsApi = {
+    list: () => api.get('/notifications'),
+    markRead: (id) => api.patch(`/notifications/${id}/read`),
+    markAllRead: () => api.patch('/notifications/read-all'),
+    delete: (id) => api.delete(`/notifications/${id}`),
+    clearAll: () => api.delete('/notifications'),
+};
+
+// ── Bill Extractor ──────────────────────────────────────────────────────────
+
+/**
+ * Multipart upload wrapper — lets the browser set Content-Type + boundary automatically.
+ */
+async function requestMultipart(path, formData, timeoutMs = 120000) {
+    const headers = {};
+    if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        const res = await fetch(`${BASE_URL}${path}`, {
+            method: 'POST',
+            headers,
+            body: formData,
+            signal: controller.signal,
+        });
+
+        if (!res.ok) {
+            let errBody;
+            try { errBody = await res.json(); } catch (_) { errBody = {}; }
+            const err = new Error(errBody.error || `Request failed: ${res.status}`);
+            err.status = res.status;
+            throw err;
+        }
+
+        return res.json();
+    } catch (err) {
+        if (err.name === 'AbortError') throw new Error('OCR timed out — the server took too long. Try a smaller or clearer image.');
+        throw err;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+export const billsApi = {
+    extract: (file) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        return requestMultipart('/bills/extract', fd);
+    },
+    list: () => api.get('/bills'),
+    get: (id) => api.get(`/bills/${id}`),
+    update: (id, data) => request(`/bills/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id) => api.delete(`/bills/${id}`),
+};
+
 export default api;
+
