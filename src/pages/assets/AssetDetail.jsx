@@ -1,21 +1,14 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, User, Calendar, DollarSign, ArrowRight, CheckCircle, AlertTriangle, Wrench, RotateCcw } from 'lucide-react';
+import { ArrowLeft, MapPin, User, Calendar, DollarSign, CheckCircle, AlertTriangle } from 'lucide-react';
 import StatusIndicator from '../../components/ui/StatusIndicator.jsx';
-import { assets, assetMovements } from '../../data/mockData.js';
-
-const timelineIcons = {
-    Transfer: <ArrowRight size={14} className="text-zinc-300" />,
-    Verification: <CheckCircle size={14} className="text-emerald-400" />,
-    Maintenance: <Wrench size={14} className="text-amber-400" />,
-    Registration: <RotateCcw size={14} className="text-cyan-400" />,
-};
+import AssetTimeline from '../../components/ui/AssetTimeline.jsx';
+import { assets } from '../../data/mockData.js';
 
 export default function AssetDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
     const asset = assets.find(a => a.id === id) || assets[0];
-    const movements = assetMovements.filter(m => m.assetId === asset.id);
 
     const healthColor = { Good: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', Fair: 'text-amber-400 bg-amber-500/10 border-amber-500/30', Poor: 'text-red-400 bg-red-500/10 border-red-500/30' };
 
@@ -102,43 +95,10 @@ export default function AssetDetail() {
                         </div>
                     </div>
 
-                    {/* Movement timeline */}
+                    {/* CITRA Lifecycle Timeline */}
                     <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-5">
-                        <h3 className="text-white font-semibold text-sm mb-4">Movement Timeline</h3>
-                        {movements.length === 0 ? (
-                            <p className="text-slate-400 text-sm">No movement history available.</p>
-                        ) : (
-                            <div className="relative">
-                                <div className="absolute left-4 top-0 bottom-0 w-px bg-slate-700" />
-                                <div className="space-y-5">
-                                    {movements.map((m, i) => (
-                                        <div key={m.id} className="flex gap-4 pl-2">
-                                            <div className="w-6 h-6 rounded-full bg-zinc-900 border-2 border-zinc-800 flex items-center justify-center shrink-0 relative z-10 mt-0.5">
-                                                {timelineIcons[m.action] || <ArrowRight size={14} className="text-slate-400" />}
-                                            </div>
-                                            <div className="flex-1 pb-1">
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <div>
-                                                        <p className="text-slate-200 text-sm font-medium">{m.action}</p>
-                                                        <p className="text-slate-400 text-xs mt-0.5">{m.from} → {m.to}</p>
-                                                        {m.notes && <p className="text-slate-500 text-xs mt-1 italic">"{m.notes}"</p>}
-                                                    </div>
-                                                    <div className="text-right shrink-0">
-                                                        <p className="text-slate-400 text-xs whitespace-nowrap">{m.timestamp}</p>
-                                                        <p className="text-slate-500 text-xs">{m.by}</p>
-                                                        {m.approved && (
-                                                            <span className="inline-flex items-center gap-1 text-emerald-400 text-[10px] mt-1">
-                                                                <CheckCircle size={10} /> Approved
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                        <h3 className="text-white font-semibold text-sm mb-4">Lifecycle Timeline</h3>
+                        <AssetTimeline assetId={id || asset.id} />
                     </div>
                 </div>
             </div>

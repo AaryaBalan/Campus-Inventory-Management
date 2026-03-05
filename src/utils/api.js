@@ -77,9 +77,14 @@ export const assetApi = {
     create: (data) => api.post('/assets', data),
     update: (id, data) => api.put(`/assets/${id}`, data),
     transfer: (id, data) => api.post(`/assets/${id}/transfer`, data),
+    retire: (id, reason) => api.delete(`/assets/${id}`, { reason }),
     movements: (id) => api.get(`/assets/${id}/movements`),
-    bulkCreate: (assets) => api.post('/assets/bulk', { assets }),
-    verifyQR: (token) => api.get(`/assets/qr/verify?token=${token}`),
+    bulkCreate: (assets) => api.post('/assets/bulk-register', assets),
+    verifyQR: (qrValue) => api.post('/assets/verify', { qrValue }),
+    qrCode: (id) => api.get(`/assets/${id}/qr`),
+    // CITRA lifecycle events
+    events: (id, limit) => api.get(`/assets/${id}/events${limit ? `?limit=${limit}` : ''}`),
+    eventSummary: (id) => api.get(`/assets/${id}/events/summary`),
 };
 
 export const procurementApi = {
