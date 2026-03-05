@@ -102,6 +102,20 @@ export const buildings = [
     { id: 'B8', name: 'Seminar Hall', x: 220, y: 350, w: 270, h: 80, assetCount: 33, color: '#059669' },
 ];
 
+// ─── Building IP Mappings ─────────────────────────────────────────────────────
+// One-time setup: Each building is assigned a dedicated IP subnet.
+// When an asset's IP falls within a building's range, its location is auto-detected.
+export const buildingIPMappings = [
+    { id: 1, building_name: 'Admin Block', ip_range_start: '192.168.10.1', ip_range_end: '192.168.10.254', subnet: '192.168.10.0/24', code: 'ADM', vlan: 10, floor: 1, building_id: 'B1', gateway: '192.168.10.1', dns: '192.168.10.2', status: 'active' },
+    { id: 2, building_name: 'Library', ip_range_start: '192.168.20.1', ip_range_end: '192.168.20.254', subnet: '192.168.20.0/24', code: 'LIB', vlan: 20, floor: 2, building_id: 'B2', gateway: '192.168.20.1', dns: '192.168.20.2', status: 'active' },
+    { id: 3, building_name: 'Lecture Hall A', ip_range_start: '192.168.30.1', ip_range_end: '192.168.30.254', subnet: '192.168.30.0/24', code: 'LHA', vlan: 30, floor: 3, building_id: 'B3', gateway: '192.168.30.1', dns: '192.168.30.2', status: 'active' },
+    { id: 4, building_name: 'Science Lab', ip_range_start: '192.168.40.1', ip_range_end: '192.168.40.254', subnet: '192.168.40.0/24', code: 'SCI', vlan: 40, floor: 1, building_id: 'B4', gateway: '192.168.40.1', dns: '192.168.40.2', status: 'active' },
+    { id: 5, building_name: 'Server Room', ip_range_start: '192.168.50.1', ip_range_end: '192.168.50.254', subnet: '192.168.50.0/24', code: 'SRV', vlan: 50, floor: 0, building_id: 'B5', gateway: '192.168.50.1', dns: '192.168.50.2', status: 'active' },
+    { id: 6, building_name: 'Conference Room', ip_range_start: '192.168.60.1', ip_range_end: '192.168.60.254', subnet: '192.168.60.0/24', code: 'CNF', vlan: 60, floor: 1, building_id: 'B6', gateway: '192.168.60.1', dns: '192.168.60.2', status: 'active' },
+    { id: 7, building_name: 'Staff Room', ip_range_start: '192.168.70.1', ip_range_end: '192.168.70.254', subnet: '192.168.70.0/24', code: 'STF', vlan: 70, floor: 1, building_id: 'B7', gateway: '192.168.70.1', dns: '192.168.70.2', status: 'active' },
+    { id: 8, building_name: 'Seminar Hall', ip_range_start: '192.168.80.1', ip_range_end: '192.168.80.254', subnet: '192.168.80.0/24', code: 'SEM', vlan: 80, floor: 2, building_id: 'B8', gateway: '192.168.80.1', dns: '192.168.80.2', status: 'active' },
+];
+
 // ─── KPIs ─────────────────────────────────────────────────────────────────────
 export const kpis = {
     totalAssets: 1284,

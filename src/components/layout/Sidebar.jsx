@@ -4,11 +4,16 @@ import { useApp, ROLES } from '../../context/AppContext.jsx';
 import {
     LayoutDashboard, Package, BarChart2, ShoppingCart, TrendingUp,
     Shield, QrCode, MapPin, Warehouse, Bell, Settings, ChevronLeft, X,
-    ChevronRight,
+    ChevronRight, Network,
 } from 'lucide-react';
 
 const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, href: null },
+    {
+        label: 'Network', icon: Network, children: [
+            { label: 'IP Protocol', href: '/network/ip-mapping' },
+        ]
+    },
     { label: 'Assets', icon: Package, href: '/assets' },
     { label: 'Campus Map', icon: MapPin, href: '/campus' },
     { label: 'Inventory', icon: Warehouse, href: '/inventory' },
