@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Monitor, Wifi, WifiOff, AlertTriangle, Copy, CheckCheck,
     ChevronDown, ChevronUp, Search, Filter, RefreshCw,
-    Cpu, HardDrive, Globe, Calendar, Clock, MapPin, Hash, Download
+    Cpu, HardDrive, Globe, Calendar, Clock, MapPin, Hash
 } from 'lucide-react';
 import { registeredSystems, buildingIPMappings } from '../../data/mockData.js';
 
@@ -328,34 +328,6 @@ export default function NewSystems() {
                 <div className="px-5 py-3 border-t border-zinc-800/80 flex items-center justify-between">
                     <p className="text-zinc-600 text-xs">Select any row to expand full system details</p>
                     <p className="text-zinc-600 text-xs font-mono">Updated: {formatClock(now)}</p>
-                </div>
-            </div>
-
-            {/* ── Agent Install Info ── */}
-            <div className="bg-zinc-900/60 border border-zinc-800/70 rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-zinc-800/80 rounded-xl"><Download size={15} className="text-zinc-300" /></div>
-                        <div>
-                            <h3 className="text-zinc-100 font-semibold text-sm">Agent Installation</h3>
-                            <p className="text-zinc-500 text-xs mt-0.5">Deploy on each endpoint to enable auto-registration</p>
-                        </div>
-                    </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {[
-                        { step: '01', label: 'Download Agent', desc: 'Copy agent.py + config.json from the /agent directory of this repository to the target PC.' },
-                        { step: '02', label: 'Configure Server URL', desc: 'Edit config.json and set server_url to your dashboard backend (e.g., http://192.168.1.1:5000/api/register).' },
-                        { step: '03', label: 'Run as Service', desc: 'Execute: python agent.py — or install as a Windows Service / Linux systemd unit for persistent background operation.' },
-                    ].map(s => (
-                        <div key={s.step} className="flex gap-3 bg-zinc-800/30 border border-zinc-700/40 rounded-xl p-4">
-                            <span className="text-zinc-600 text-xl font-black font-mono leading-none shrink-0">{s.step}</span>
-                            <div>
-                                <p className="text-zinc-200 text-xs font-semibold mb-1">{s.label}</p>
-                                <p className="text-zinc-500 text-xs leading-relaxed">{s.desc}</p>
-                            </div>
-                        </div>
-                    ))}
                 </div>
             </div>
 

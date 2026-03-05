@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Network, Server, Shield, Wifi, Copy, CheckCheck, ChevronDown, ChevronUp, MapPin, Building2 } from 'lucide-react';
+import { Network, Server, Shield, Wifi, Copy, CheckCheck, ChevronDown, ChevronUp, MapPin, Building2, Globe, Hash } from 'lucide-react';
 import { buildingIPMappings, buildings } from '../../data/mockData.js';
 
 // Building color map from campus map data
@@ -7,7 +7,8 @@ const buildingColorMap = Object.fromEntries(buildings.map(b => [b.id, b.color]))
 
 function CopyButton({ text }) {
     const [copied, setCopied] = useState(false);
-    const handle = () => {
+    const handle = (e) => {
+        e.stopPropagation();
         navigator.clipboard.writeText(text).catch(() => { });
         setCopied(true);
         setTimeout(() => setCopied(false), 1800);
@@ -16,42 +17,31 @@ function CopyButton({ text }) {
         <button
             onClick={handle}
             title="Copy"
-            className="ml-1.5 p-1 rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/60 transition-all"
+            className="ml-1.5 p-1 rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/60 transition-all focus:outline-none"
         >
             {copied ? <CheckCheck size={12} className="text-emerald-400" /> : <Copy size={12} />}
         </button>
     );
 }
 
-function StatusDot({ status }) {
+function IPCell({ value }) {
     return (
-        <span className="flex items-center gap-1.5">
-            <span className={`w-1.5 h-1.5 rounded-full ${status === 'active' ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'}`} />
-            <span className={`text-xs font-medium ${status === 'active' ? 'text-emerald-400' : 'text-zinc-500'}`}>
-                {status === 'active' ? 'Active' : 'Inactive'}
-            </span>
-        </span>
-    );
-}
-
-function IPCell({ ip }) {
-    return (
-        <span className="flex items-center font-mono text-xs text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-md">
-            {ip}
-            <CopyButton text={ip} />
+        <span className="inline-flex items-center font-mono text-[11px] text-cyan-300 bg-cyan-500/5 border border-cyan-500/20 px-2 py-0.5 rounded-md leading-none">
+            {value}
+            <CopyButton text={value} />
         </span>
     );
 }
 
 function SortIcon({ col, sortBy, sortDir }) {
-    if (sortBy !== col) return <ChevronDown size={12} className="text-zinc-600 ml-1" />;
+    if (sortBy !== col) return <ChevronDown size={11} className="text-zinc-700 ml-1" />;
     return sortDir === 'asc'
-        ? <ChevronUp size={12} className="text-zinc-300 ml-1" />
-        : <ChevronDown size={12} className="text-zinc-300 ml-1" />;
+        ? <ChevronUp size={11} className="text-blue-400 ml-1" />
+        : <ChevronDown size={11} className="text-blue-400 ml-1" />;
 }
 
 export default function BuildingIPMapping() {
-    const [sortBy, setSortBy] = useState('id');
+    const [sortBy, setSortBy] = useState('vlan');
     const [sortDir, setSortDir] = useState('asc');
     const [expandedRow, setExpandedRow] = useState(null);
 
@@ -60,7 +50,7 @@ export default function BuildingIPMapping() {
         else { setSortBy(col); setSortDir('asc'); }
     };
 
-    const sorted = [...buildingIPMappings].sort((a, b) => {
+    const sortedData = [...buildingIPMappings].sort((a, b) => {
         const av = a[sortBy], bv = b[sortBy];
         const cmp = typeof av === 'number' ? av - bv : String(av).localeCompare(String(bv));
         return sortDir === 'asc' ? cmp : -cmp;
@@ -69,7 +59,7 @@ export default function BuildingIPMapping() {
     const ThCell = ({ col, label }) => (
         <th
             onClick={() => handleSort(col)}
-            className="px-4 py-3 text-left text-zinc-400 text-xs font-semibold uppercase tracking-wider cursor-pointer hover:text-zinc-200 select-none whitespace-nowrap"
+            className="px-5 py-3 text-left text-zinc-500 text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:text-zinc-200 select-none whitespace-nowrap group"
         >
             <span className="flex items-center">
                 {label}
@@ -79,195 +69,147 @@ export default function BuildingIPMapping() {
     );
 
     return (
-        <div className="space-y-6">
-            {/* Page header */}
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-500">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                 <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="text-zinc-400 text-xs font-medium uppercase tracking-widest">Dashboard</span>
-                        <span className="text-zinc-600 text-xs">›</span>
-                        <span className="text-zinc-400 text-xs font-medium uppercase tracking-widest">Network</span>
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.2em]">Dashboard</span>
+                        <span className="text-zinc-700 text-xs">/</span>
+                        <span className="text-zinc-300 text-[10px] font-bold uppercase tracking-[0.2em]">Network Topology</span>
                     </div>
-                    <h1 className="text-white text-2xl font-bold">IP Protocol Mapping</h1>
-                    <p className="text-slate-400 text-sm mt-1">Building subnet configuration · Campus network topology</p>
+                    <h1 className="text-white text-3xl font-black tracking-tight">IP Protocol Mapping</h1>
+                    <p className="text-zinc-500 text-sm mt-1.5 font-medium">Campus-wide subnet distribution and boundary configuration</p>
                 </div>
-                <div className="flex items-center gap-2 self-start sm:self-center">
-                    <span className="flex items-center gap-1.5 text-emerald-400 text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full whitespace-nowrap">
-                        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                        {buildingIPMappings.filter(b => b.status === 'active').length} Online
-                    </span>
-                    <span className="text-zinc-500 text-xs font-mono bg-zinc-800/60 border border-zinc-700/50 px-3 py-1.5 rounded-full whitespace-nowrap">
-                        IPv4 · /24 Subnets
+                <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+                        Network Active
                     </span>
                 </div>
             </div>
 
-            {/* Location Coverage Grid */}
-            <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-5">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-zinc-800/80 rounded-xl">
-                        <MapPin size={15} className="text-zinc-300" />
-                    </div>
-                    <div>
-                        <h2 className="text-zinc-100 font-semibold text-sm">Location Coverage</h2>
-                        <p className="text-zinc-500 text-xs mt-0.5">All campus zones mapped to dedicated network subnets</p>
-                    </div>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {buildingIPMappings.map(b => {
-                        const bColor = buildingColorMap[b.building_id] || '#52525b';
-                        return (
-                            <div
-                                key={b.id}
-                                className="flex items-center gap-2.5 bg-zinc-800/40 border border-zinc-700/40 rounded-xl px-3 py-2.5 hover:bg-zinc-800/70 transition-colors"
-                            >
-                                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: bColor }} />
-                                <div className="min-w-0">
-                                    <p className="text-zinc-200 text-xs font-medium truncate">{b.building_name}</p>
-                                    <p className="text-zinc-500 text-[10px] font-mono mt-0.5">192.168.{b.vlan}.x · {b.code}</p>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Summary KPI row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {/* Quick Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: 'Buildings Mapped', value: buildingIPMappings.length, icon: <Network size={18} />, color: 'border-zinc-700/60', iconBg: 'bg-zinc-800/60', iconColor: 'text-zinc-300' },
-                    { label: 'Active Subnets', value: buildingIPMappings.filter(b => b.status === 'active').length, icon: <Wifi size={18} />, color: 'border-emerald-500/20', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-400' },
-                    { label: 'IP Space / Subnet', value: '254 hosts', icon: <Server size={18} />, color: 'border-zinc-700/60', iconBg: 'bg-zinc-800/60', iconColor: 'text-zinc-300' },
-                    { label: 'Protocol', value: 'IPv4 / VLAN', icon: <Shield size={18} />, color: 'border-zinc-700/60', iconBg: 'bg-zinc-800/60', iconColor: 'text-zinc-300' },
-                ].map(kpi => (
-                    <div key={kpi.label} className={`bg-zinc-900/70 border ${kpi.color} rounded-2xl p-5 hover:bg-zinc-900 transition-all duration-200`}>
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider">{kpi.label}</p>
-                                <p className="text-2xl font-bold text-white mt-1">{kpi.value}</p>
-                            </div>
-                            <div className={`p-3 rounded-xl ${kpi.iconBg}`}>
-                                <span className={kpi.iconColor}>{kpi.icon}</span>
-                            </div>
+                    { label: 'Total Scopes', value: '8 Subnets', icon: <Network size={18} />, color: 'text-blue-400', bg: 'bg-blue-400/10', border: 'border-blue-400/20' },
+                    { label: 'Map Status', value: 'Sync Active', icon: <Wifi size={18} />, color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/20' },
+                    { label: 'IP Capacity', value: '2,032 Hosts', icon: <Globe size={18} />, color: 'text-cyan-400', bg: 'bg-cyan-400/10', border: 'border-cyan-400/20' },
+                    { label: 'Security', value: 'VLAN Segregation', icon: <Shield size={18} />, color: 'text-zinc-400', bg: 'bg-zinc-800/80', border: 'border-zinc-700/60' },
+                ].map((k, i) => (
+                    <div key={i} className={`bg-[#0c0c0e]/60 backdrop-blur-md border ${k.border} rounded-2xl p-4 flex items-center gap-4 transition-all hover:translate-y-[-2px]`}>
+                        <div className={`p-2.5 rounded-xl ${k.bg} ${k.color}`}>{k.icon}</div>
+                        <div>
+                            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">{k.label}</p>
+                            <p className="text-white text-lg font-bold mt-0.5">{k.value}</p>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* Main table card */}
-            <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800/80">
+            {/* Coverage Grid */}
+            <div className="bg-[#0c0c0e]/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-5 overflow-hidden relative">
+                <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-zinc-800/80 rounded-xl">
-                            <Network size={15} className="text-zinc-300" />
-                        </div>
+                        <div className="p-2 bg-blue-500/10 rounded-xl text-blue-400"><MapPin size={16} /></div>
                         <div>
-                            <h2 className="text-zinc-100 font-semibold text-sm">Building IP Address Table</h2>
-                            <p className="text-zinc-500 text-xs mt-0.5">buildings · network subnet · VLAN configuration</p>
+                            <h2 className="text-zinc-100 font-bold text-sm tracking-tight">Location Coverage</h2>
+                            <p className="text-zinc-500 text-[11px] font-medium">Automatic asset-to-building binding</p>
                         </div>
                     </div>
-                    <span className="text-zinc-500 text-xs">{buildingIPMappings.length} entries</span>
                 </div>
 
-                {/* Scrollable table */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+                    {buildingIPMappings.map(b => (
+                        <div key={b.id} className="group relative bg-[#141416] border border-zinc-800/60 rounded-xl p-3 hover:border-zinc-600 transition-all duration-300">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]" style={{ backgroundColor: buildingColorMap[b.building_id] || '#71717a' }} />
+                                <span className="text-white text-[10px] font-black uppercase tracking-widest">{b.code}</span>
+                            </div>
+                            <p className="text-zinc-400 text-[10px] font-bold truncate mb-0.5">{b.building_name}</p>
+                            <p className="text-blue-400 font-mono text-[9px] font-bold tabular-nums tracking-tighter opacity-80 group-hover:opacity-100 transition-opacity">192.168.{b.vlan}.x</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Main Table */}
+            <div className="bg-[#0c0c0e]/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl overflow-hidden shadow-2xl">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 bg-zinc-900/40">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-zinc-800/80 rounded-xl text-zinc-400"><Network size={16} /></div>
+                        <div>
+                            <h2 className="text-zinc-100 font-bold text-sm tracking-tight">Subnet Ledger</h2>
+                            <p className="text-zinc-500 text-[11px] font-medium tracking-tight">VLAN tagging and gateway allocation</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[860px]">
-                        <thead className="bg-zinc-800/40 border-b border-zinc-800/80">
-                            <tr>
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-zinc-800/20 border-b border-zinc-800/40">
                                 <ThCell col="id" label="ID" />
-                                <ThCell col="building_name" label="Building Name" />
-                                <ThCell col="code" label="Code" />
+                                <ThCell col="building_name" label="Building" />
                                 <ThCell col="vlan" label="VLAN" />
-                                <ThCell col="ip_range_start" label="IP Range Start" />
-                                <ThCell col="ip_range_end" label="IP Range End" />
-                                <ThCell col="subnet" label="Subnet" />
+                                <ThCell col="ip_range_start" label="Range Start" />
+                                <ThCell col="ip_range_end" label="Range End" />
                                 <ThCell col="gateway" label="Gateway" />
                                 <ThCell col="status" label="Status" />
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-800/60">
-                            {sorted.map((b) => {
-                                const bColor = buildingColorMap[b.building_id] || '#52525b';
+                        <tbody className="divide-y divide-zinc-800/40">
+                            {sortedData.map(b => {
                                 const isExpanded = expandedRow === b.id;
                                 return (
                                     <React.Fragment key={b.id}>
                                         <tr
                                             onClick={() => setExpandedRow(isExpanded ? null : b.id)}
-                                            className="hover:bg-zinc-800/30 transition-colors cursor-pointer group"
+                                            className={`group cursor-pointer transition-all duration-200 ${isExpanded ? 'bg-blue-500/[0.04]' : 'hover:bg-zinc-800/40'}`}
                                         >
-                                            {/* ID */}
-                                            <td className="px-4 py-3">
-                                                <span className="text-zinc-500 text-xs font-mono">{String(b.id).padStart(2, '0')}</span>
-                                            </td>
-                                            {/* Building name with color dot */}
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-center gap-2.5">
-                                                    <span
-                                                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                                                        style={{ background: bColor }}
-                                                    />
-                                                    <span className="text-zinc-100 text-sm font-medium">{b.building_name}</span>
+                                            <td className="px-6 py-4 text-zinc-600 font-mono text-[11px]">{String(b.id).padStart(2, '0')}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/20" style={{ backgroundColor: buildingColorMap[b.building_id] || '#71717a' }} />
+                                                    <span className="text-zinc-200 font-bold text-xs tracking-tight">{b.building_name}</span>
                                                 </div>
                                             </td>
-                                            {/* Code badge */}
-                                            <td className="px-4 py-3">
-                                                <span
-                                                    className="px-2 py-0.5 rounded-md text-xs font-bold font-mono border"
-                                                    style={{ color: bColor, borderColor: bColor + '40', background: bColor + '18' }}
-                                                >
-                                                    {b.code}
+                                            <td className="px-6 py-4">
+                                                <span className="px-1.5 py-0.5 rounded-md bg-zinc-800/80 border border-zinc-700/50 text-zinc-400 font-bold font-mono text-[10px] tracking-widest">{b.vlan}</span>
+                                            </td>
+                                            <td className="px-6 py-4"><IPCell value={b.ip_range_start} /></td>
+                                            <td className="px-6 py-4"><IPCell value={b.ip_range_end} /></td>
+                                            <td className="px-6 py-4 text-zinc-500 font-mono text-[11px] font-medium">{b.gateway}</td>
+                                            <td className="px-6 py-4">
+                                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.1em]">
+                                                    <span className="w-1 h-1 rounded-full bg-emerald-400 rotate-animation transition-transform" />
+                                                    {b.status}
                                                 </span>
-                                            </td>
-                                            {/* VLAN */}
-                                            <td className="px-4 py-3">
-                                                <span className="text-zinc-300 text-xs font-mono bg-zinc-800/60 border border-zinc-700/50 px-2 py-0.5 rounded">
-                                                    VLAN {b.vlan}
-                                                </span>
-                                            </td>
-                                            {/* IP Start */}
-                                            <td className="px-4 py-3">
-                                                <IPCell ip={b.ip_range_start} />
-                                            </td>
-                                            {/* IP End */}
-                                            <td className="px-4 py-3">
-                                                <IPCell ip={b.ip_range_end} />
-                                            </td>
-                                            {/* Subnet */}
-                                            <td className="px-4 py-3">
-                                                <span className="font-mono text-xs text-zinc-300">{b.subnet}</span>
-                                            </td>
-                                            {/* Gateway */}
-                                            <td className="px-4 py-3">
-                                                <span className="font-mono text-xs text-zinc-400">{b.gateway}</span>
-                                            </td>
-                                            {/* Status */}
-                                            <td className="px-4 py-3">
-                                                <StatusDot status={b.status} />
                                             </td>
                                         </tr>
-
-                                        {/* Expanded detail row */}
                                         {isExpanded && (
-                                            <tr className="bg-zinc-800/20">
-                                                <td colSpan={9} className="px-6 py-4">
-                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                                                        {[
-                                                            { label: 'DNS Server', value: b.dns },
-                                                            { label: 'Gateway', value: b.gateway },
-                                                            { label: 'Floor', value: `Floor ${b.floor}` },
-                                                            { label: 'Campus Map ID', value: b.building_id },
-                                                        ].map(det => (
-                                                            <div key={det.label} className="flex flex-col gap-1">
-                                                                <span className="text-zinc-500 uppercase tracking-wider text-[10px] font-semibold">{det.label}</span>
-                                                                <span className="text-zinc-200 font-mono">{det.value}</span>
+                                            <tr className="bg-blue-500/[0.02]">
+                                                <td colSpan="7" className="px-12 py-5 animate-in slide-in-from-top-2 duration-300">
+                                                    <div className="flex flex-wrap items-center gap-x-12 gap-y-4">
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="text-zinc-500 uppercase tracking-widest text-[9px] font-black">Subnet Mask</span>
+                                                            <span className="text-zinc-200 font-mono text-xs font-bold">255.255.255.0</span>
+                                                        </div>
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="text-zinc-500 uppercase tracking-widest text-[9px] font-black">DNS Allocation</span>
+                                                            <span className="text-zinc-200 font-mono text-xs font-bold">{b.dns}</span>
+                                                        </div>
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="text-zinc-500 uppercase tracking-widest text-[9px] font-black">Building Code</span>
+                                                            <span className="text-zinc-200 font-mono text-xs font-bold">{b.code}</span>
+                                                        </div>
+                                                        <div className="flex flex-col gap-1 border-l border-zinc-800 pl-8">
+                                                            <span className="text-zinc-500 uppercase tracking-widest text-[9px] font-black">Auto-Detected Asset Binding</span>
+                                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                                <div className="w-2 h-2 rounded-full bg-emerald-500/40 border border-emerald-500" />
+                                                                <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-tight">Protocol Active</span>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                    <div className="mt-3 pt-3 border-t border-zinc-700/40 flex items-center gap-2">
-                                                        <MapPin size={11} className="text-zinc-500 shrink-0" />
-                                                        <p className="text-zinc-500 text-[10px] font-mono">
-                                                            {b.subnet} · Floor {b.floor} · Gateway {b.gateway}
-                                                        </p>
+                                                        </div>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -279,30 +221,13 @@ export default function BuildingIPMapping() {
                     </table>
                 </div>
 
-                {/* Table footer */}
-                <div className="px-5 py-3 border-t border-zinc-800/80 flex items-center justify-between">
-                    <p className="text-zinc-600 text-xs">Select a row to view subnet details</p>
-                    <p className="text-zinc-600 text-xs font-mono">192.168.10.0 – 192.168.80.254</p>
+                <div className="bg-zinc-900/40 px-6 py-3 border-t border-zinc-800/80 flex items-center justify-between">
+                    <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                        <div className="w-1 h-1 rounded-full bg-zinc-600" />
+                        Click to expand protocol details
+                    </p>
+                    <p className="text-zinc-500 font-mono text-[10px] font-bold">CITIL_NETWORK_v1.0.4</p>
                 </div>
-            </div>
-
-            {/* Network Stats footer row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {[
-                    { label: 'Total IP Space', value: `${buildingIPMappings.length * 254} hosts`, icon: <Server size={15} />, sub: `${buildingIPMappings.length} subnets × 254` },
-                    { label: 'VLAN Range', value: 'VLAN 10 – 80', icon: <Network size={15} />, sub: 'Increments of 10' },
-                    { label: 'Campus Zones', value: `${buildingIPMappings.length} buildings`, icon: <Building2 size={15} />, sub: 'Fully covered' },
-                    { label: 'Protocol', value: 'IPv4', icon: <Shield size={15} />, sub: '/24 CIDR blocks' },
-                ].map(stat => (
-                    <div key={stat.label} className="bg-zinc-900/60 border border-zinc-800/70 rounded-2xl p-4 flex items-start gap-3">
-                        <div className="p-2 bg-zinc-800/60 rounded-xl shrink-0 text-zinc-400">{stat.icon}</div>
-                        <div>
-                            <p className="text-zinc-500 text-[10px] font-semibold uppercase tracking-wider">{stat.label}</p>
-                            <p className="text-zinc-100 text-sm font-bold mt-0.5">{stat.value}</p>
-                            <p className="text-zinc-600 text-[10px] mt-0.5">{stat.sub}</p>
-                        </div>
-                    </div>
-                ))}
             </div>
         </div>
     );
