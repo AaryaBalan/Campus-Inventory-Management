@@ -4,6 +4,7 @@ const { checkPermission, adminOnly } = require('../middleware/rbac');
 const validate = require('../middleware/validate');
 const schemas = require('../models/schemas');
 const svc = require('../services/assetService');
+const eventSvc = require('../services/assetEventService');
 
 const can = (action) => checkPermission(action, 'assets');
 
@@ -30,7 +31,8 @@ router.post('/verify', authenticate, async (req, res, next) => {
     try {
         const { qrValue } = req.body;
         if (!qrValue) return res.status(422).json({ error: 'qrValue is required' });
-        res.json(await svc.verifyByQr(qrValue));
+        // Pass req.user so verifyByQr can log a Verified lifecycle event
+        res.json(await svc.verifyByQr(qrValue, req.user));
     } catch (e) { next(e); }
 });
 
@@ -76,6 +78,30 @@ router.get('/:assetId/movements', authenticate, can('read'), async (req, res, ne
 // GET /api/assets/:assetId/qr
 router.get('/:assetId/qr', authenticate, can('read'), async (req, res, next) => {
     try { res.json({ qrCode: await svc.getQrCode(req.params.assetId) }); } catch (e) { next(e); }
+});
+
+// ── CITRA Lifecycle Events ──────────────────────────────────────────────────
+
+// GET /api/assets/:assetId/events
+// Returns the full chronological lifecycle timeline for an asset.
+router.get('/:assetId/events', authenticate, can('read'), async (req, res, next) => {
+    try {
+        const { limit } = req.query;
+        const timeline = await eventSvc.getTimeline(
+            req.params.assetId,
+            { limit: limit ? parseInt(limit) : 100 }
+        );
+        res.json({ assetId: req.params.assetId, events: timeline, total: timeline.length });
+    } catch (e) { next(e); }
+});
+
+// GET /api/assets/:assetId/events/summary
+// Returns event counts per type — useful for dashboard summary cards.
+router.get('/:assetId/events/summary', authenticate, can('read'), async (req, res, next) => {
+    try {
+        const summary = await eventSvc.getEventSummary(req.params.assetId);
+        res.json({ assetId: req.params.assetId, summary });
+    } catch (e) { next(e); }
 });
 
 module.exports = router;

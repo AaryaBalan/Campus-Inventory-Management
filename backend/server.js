@@ -33,8 +33,8 @@ app.use(globalLimiter);
 app.get('/health', (req, res) => {
     res.json({
         status: 'ok',
-        service: 'CITIL Backend',
-        version: '1.0.0',
+        service: 'CITRA Backend',
+        version: '2.0.0',
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV,
     });
@@ -71,7 +71,7 @@ if (process.env.NODE_ENV !== 'test') {
 const PORT = parseInt(process.env.PORT || '5000', 10);
 
 server.listen(PORT, () => {
-    logger.info(`🚀 CITIL API running on port ${PORT} [${process.env.NODE_ENV}]`);
+    logger.info(`🚀 CITRA API running on port ${PORT} [${process.env.NODE_ENV}]`);
 });
 
 module.exports = { app, server }; // for testing

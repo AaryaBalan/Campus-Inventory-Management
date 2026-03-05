@@ -4,12 +4,40 @@ const dayjs = require('dayjs');
 const qrCodeUtil = require('../utils/qrCode');
 const auditService = require('./auditService');
 const alertService = require('./alertService');
+const assetEventService = require('./assetEventService');
 const { emit } = require('../websocket/wsServer');
 const { createError } = require('../middleware/errorHandler');
 
 const ASSETS_COL = 'assets';
+const COUNTERS_COL = 'asset_id_counters';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Build a domain-coded asset ID in the format DEPT-CAT-SEQ.
+ * Examples: ECE-OSC-021, CHEM-MIC-004, LIB-COMP-117
+ *
+ * @param {string} department  e.g. "Electronics", "Chemistry", "Library"
+ * @param {string} category    e.g. "Oscilloscope", "Microscope", "Computer"
+ * @returns {Promise<string>}  e.g. "ECE-OSC-021"
+ */
+async function generateAssetId(department, category) {
+    // Derive 3-letter codes from the supplied strings
+    const deptCode = (department || 'GEN').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3).padEnd(3, 'X');
+    const catCode = (category || 'AST').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3).padEnd(3, 'X');
+    const prefix = `${deptCode}-${catCode}`;
+
+    // Atomic counter increment in Firestore
+    const counterRef = db.collection(COUNTERS_COL).doc(prefix);
+    const newSeq = await db.runTransaction(async (txn) => {
+        const snap = await txn.get(counterRef);
+        const next = snap.exists ? snap.data().seq + 1 : 1;
+        txn.set(counterRef, { seq: next }, { merge: true });
+        return next;
+    });
+
+    return `${prefix}-${String(newSeq).padStart(3, '0')}`;
+}
 
 function buildStatusFromHealth(health) {
     if (health === 'Poor') return 'Under Maintenance';
@@ -22,7 +50,7 @@ function buildStatusFromHealth(health) {
  * Create a new asset. Generates a unique QR code.
  */
 async function createAsset(data, user) {
-    const assetId = `AST-${Date.now()}-${uuidv4().slice(0, 4).toUpperCase()}`;
+    const assetId = await generateAssetId(data.currentDepartment || data.department, data.category);
     const qrCode = await qrCodeUtil.generateAssetQR(assetId);
 
     const asset = {
@@ -39,7 +67,7 @@ async function createAsset(data, user) {
 
     await db.collection(ASSETS_COL).doc(assetId).set(asset);
 
-    // Initial movement log
+    // Initial movement log (legacy – kept for backward compatibility)
     await _logMovement(assetId, {
         action: 'Registered',
         fromLocation: null,
@@ -48,6 +76,15 @@ async function createAsset(data, user) {
         toOwner: data.assignedTo || null,
         movedBy: user.uid,
         reason: 'Initial registration',
+    });
+
+    // CITRA lifecycle event
+    await assetEventService.logEvent(assetId, {
+        type: assetEventService.EVENT_TYPES.PURCHASED,
+        actorId: user.uid,
+        from: null,
+        to: data.currentLocation || data.currentDepartment || null,
+        notes: `Asset '${data.name}' registered via CITRA. Vendor: ${data.vendor || 'N/A'}`,
     });
 
     await auditService.log({
@@ -149,6 +186,15 @@ async function retireAsset(assetId, reason, user) {
         reason,
     });
 
+    // CITRA lifecycle event
+    await assetEventService.logEvent(assetId, {
+        type: assetEventService.EVENT_TYPES.RETIRED,
+        actorId: user.uid,
+        from: asset.currentLocation || asset.currentDepartment || null,
+        to: null,
+        notes: reason,
+    });
+
     await auditService.log({
         userId: user.uid,
         action: 'DELETE',
@@ -189,6 +235,15 @@ async function transferAsset(assetId, { toLocation, toDepartment, toOwner, reaso
         movedBy: user.uid,
         reason,
         notes,
+    });
+
+    // CITRA lifecycle event
+    await assetEventService.logEvent(assetId, {
+        type: assetEventService.EVENT_TYPES.TRANSFERRED,
+        actorId: user.uid,
+        from: `${asset.currentDepartment || ''} / ${asset.currentLocation || ''}`.trim(),
+        to: `${toDepartment || ''} / ${toLocation || ''}`.trim(),
+        notes: notes || reason,
     });
 
     await auditService.log({
@@ -234,18 +289,37 @@ async function getQrCode(assetId) {
 
 /**
  * Verify asset by QR code — used by QR scanner page.
+ * Also logs a Verified lifecycle event on successful scan.
  */
-async function verifyByQr(qrValue) {
+async function verifyByQr(qrValue, user = null) {
+    let asset = null;
     // QR value is the assetId directly
     try {
-        const asset = await getAsset(qrValue);
-        return { found: true, asset };
+        asset = await getAsset(qrValue);
     } catch (_) {
         // Try searching by qrCode field value
         const snap = await db.collection(ASSETS_COL).where('qrCode', '==', qrValue).limit(1).get();
         if (snap.empty) return { found: false };
-        return { found: true, asset: snap.docs[0].data() };
+        asset = snap.docs[0].data();
     }
+
+    // Update lastVerified timestamp on the asset record
+    await db.collection(ASSETS_COL).doc(asset.assetId).update({
+        lastVerified: new Date().toISOString(),
+    });
+
+    // Log a Verified lifecycle event if a user is provided
+    if (user) {
+        await assetEventService.logEvent(asset.assetId, {
+            type: assetEventService.EVENT_TYPES.VERIFIED,
+            actorId: user.uid,
+            from: null,
+            to: asset.currentLocation || null,
+            notes: 'Verified via QR scan',
+        });
+    }
+
+    return { found: true, asset: { ...asset, lastVerified: new Date().toISOString() } };
 }
 
 // ── Bulk operations ────────────────────────────────────────────────────────
@@ -255,7 +329,7 @@ async function bulkRegister(assetsData, user) {
     const batch = db.batch();
 
     for (const data of assetsData) {
-        const assetId = `AST-${Date.now()}-${uuidv4().slice(0, 4).toUpperCase()}`;
+        const assetId = await generateAssetId(data.currentDepartment || data.department, data.category);
         const qrCode = await qrCodeUtil.generateAssetQR(assetId);
         const asset = {
             assetId,

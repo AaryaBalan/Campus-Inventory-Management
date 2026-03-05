@@ -35,7 +35,7 @@ export default function Header({ onMenuClick }) {
                 <div className="w-7 h-7 bg-zinc-700 rounded-lg flex items-center justify-center border border-zinc-600">
                     <span className="text-white font-bold text-xs">CI</span>
                 </div>
-                <span className="text-white font-bold text-sm hidden sm:block tracking-widest">CITIL</span>
+                <span className="text-white font-bold text-sm hidden sm:block tracking-widest">CITRA</span>
             </div>
 
             {/* Search */}

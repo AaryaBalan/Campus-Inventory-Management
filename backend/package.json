@@ -1,7 +1,7 @@
 {
-  "name": "citil-backend",
-  "version": "1.0.0",
-  "description": "CITIL – Campus Inventory, Asset & Material Traceability Platform – Backend API",
+  "name": "citra-backend",
+  "version": "2.0.0",
+  "description": "CITRA – CIT Resource & Asset Intelligence – Backend API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

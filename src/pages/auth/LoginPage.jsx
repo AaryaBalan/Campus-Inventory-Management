@@ -75,9 +75,9 @@ export default function LoginPage() {
                     <div className="w-20 h-20 mx-auto mb-6 bg-zinc-800 border border-zinc-600/60 rounded-2xl flex items-center justify-center">
                         <span className="text-white font-black text-2xl tracking-tighter">CI</span>
                     </div>
-                    <h1 className="text-white text-4xl font-black mb-2 tracking-widest">CITIL</h1>
-                    <p className="text-zinc-400 text-sm mb-1">Campus Inventory, Asset &</p>
-                    <p className="text-zinc-400 text-sm mb-10">Material Traceability Platform</p>
+                    <h1 className="text-white text-4xl font-black mb-2 tracking-widest">CITRA</h1>
+                    <p className="text-zinc-400 text-sm mb-1">CIT Resource &amp; Asset</p>
+                    <p className="text-zinc-400 text-sm mb-10">Intelligence Platform</p>
                     <div className="grid grid-cols-3 gap-3 max-w-xs mx-auto">
                         {[['97.8%', 'Asset Traceability'], ['44hrs', 'Reconciliation'], ['₹4.25Cr', 'Assets Managed']].map(([val, label]) => (
                             <div key={label} className="bg-zinc-800/60 border border-zinc-700/40 rounded-xl p-3 text-center">
@@ -98,8 +98,8 @@ export default function LoginPage() {
                             <span className="text-white font-black text-sm">CI</span>
                         </div>
                         <div>
-                            <p className="text-white font-black text-xl tracking-widest">CITIL</p>
-                            <p className="text-zinc-500 text-xs">Campus Inventory Platform</p>
+                            <p className="text-white font-black text-xl tracking-widest">CITRA</p>
+                            <p className="text-zinc-500 text-xs">Resource & Asset Intelligence</p>
                         </div>
                     </div>
 
@@ -187,7 +187,7 @@ export default function LoginPage() {
                     </form>
 
                     <p className="text-zinc-600 text-xs text-center mt-6">
-                        Campus Inventory & Traceability Platform · v2.0.1
+                        CIT Resource &amp; Asset Intelligence · v2.0.0
                     </p>
                 </div>
             </div>

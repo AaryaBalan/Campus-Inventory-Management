@@ -85,7 +85,7 @@ export default function ExecutiveDashboard() {
             {/* Impact metrics */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[
-                    { title: 'Financial Leakage Reduction', value: '35%', desc: 'vs. pre-CITIL baseline', color: 'emerald' },
+                    { title: 'Financial Leakage Reduction', value: '35%', desc: 'vs. pre-CITRA baseline', color: 'emerald' },
                     { title: 'Reconciliation Time Saved', value: '72hrs → 44hrs', desc: '-39% reduction achieved', color: 'blue' },
                     { title: 'Asset Visibility Improvement', value: '61% → 97.8%', desc: 'Traceability increase', color: 'purple' },
                 ].map(m => (
