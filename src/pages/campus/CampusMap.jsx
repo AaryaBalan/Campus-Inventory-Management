@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import Modal from '../../components/ui/Modal.jsx';
 import StatusIndicator from '../../components/ui/StatusIndicator.jsx';
-import { buildings, assets } from '../../data/mockData.js';
-import { MapPin, Filter } from 'lucide-react';
+import { buildings, assets, registeredSystems } from '../../data/mockData.js';
+import { MapPin, Filter, Monitor } from 'lucide-react';
 
 const FILTERS = ['All', 'Electronics', 'Furniture', 'Lab Equipment', 'Networking'];
 
@@ -12,6 +12,9 @@ export default function CampusMap() {
 
     const getBuildingAssets = (buildingName) =>
         assets.filter(a => a.location === buildingName && (filter === 'All' || a.category === filter));
+
+    const getBuildingSystems = (buildingName) =>
+        registeredSystems.filter(s => s.building === buildingName);
 
     return (
         <div className="space-y-5">
@@ -36,8 +39,8 @@ export default function CampusMap() {
                         key={f}
                         onClick={() => setFilter(f)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filter === f
-                                ? 'bg-zinc-700 text-white border border-zinc-500'
-                                : 'bg-zinc-900 text-slate-400 border border-zinc-800 hover:border-slate-600 hover:text-slate-200'
+                            ? 'bg-zinc-700 text-white border border-zinc-500'
+                            : 'bg-zinc-900 text-slate-400 border border-zinc-800 hover:border-slate-600 hover:text-slate-200'
                             }`}
                     >{f}</button>
                 ))}
@@ -79,7 +82,9 @@ export default function CampusMap() {
                                     )}
                                     {/* Asset count badge */}
                                     <circle cx={b.x + b.w - 12} cy={b.y + 12} r="12" fill="#1e3a8a" />
-                                    <text x={b.x + b.w - 12} y={b.y + 16} textAnchor="middle" fill="white" fontSize="9" fontWeight="bold">{bAssets.length || b.assetCount}</text>
+                                    <text x={b.x + b.w - 12} y={b.y + 16} textAnchor="middle" fill="white" fontSize="9" fontWeight="bold">
+                                        {(getBuildingAssets(b.name).length || b.assetCount) + getBuildingSystems(b.name).length}
+                                    </text>
                                 </g>
                             );
                         })}
@@ -103,22 +108,54 @@ export default function CampusMap() {
             >
                 {selected && (() => {
                     const bAssets = getBuildingAssets(selected.name);
-                    return bAssets.length === 0
-                        ? <p className="text-slate-400 text-sm">No assets match current filter in {selected.name}.</p>
-                        : (
-                            <div className="space-y-2.5">
-                                <p className="text-slate-400 text-xs">{bAssets.length} asset{bAssets.length !== 1 ? 's' : ''} found</p>
-                                {bAssets.map(a => (
-                                    <div key={a.id} className="flex items-center justify-between p-3 bg-[#0e0e11]/60 border border-zinc-800 rounded-xl">
-                                        <div>
-                                            <p className="text-slate-200 text-sm font-medium">{a.name}</p>
-                                            <p className="text-slate-400 text-xs mt-0.5">{a.id} · {a.category}</p>
-                                        </div>
-                                        <StatusIndicator status={a.status} />
+                    const bSystems = getBuildingSystems(selected.name);
+
+                    if (bAssets.length === 0 && bSystems.length === 0) {
+                        return <p className="text-slate-400 text-sm py-4 text-center">No assets detected in {selected.name}.</p>;
+                    }
+
+                    return (
+                        <div className="space-y-5">
+                            {bAssets.length > 0 && (
+                                <div>
+                                    <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-2 px-1">Static Assets ({bAssets.length})</p>
+                                    <div className="space-y-2">
+                                        {bAssets.map(a => (
+                                            <div key={a.id} className="flex items-center justify-between p-3 bg-[#0e0e11]/60 border border-zinc-800 rounded-xl">
+                                                <div>
+                                                    <p className="text-slate-200 text-sm font-medium">{a.name}</p>
+                                                    <p className="text-slate-400 text-xs mt-0.5">{a.id} · {a.category}</p>
+                                                </div>
+                                                <StatusIndicator status={a.status} />
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
-                        );
+                                </div>
+                            )}
+
+                            {bSystems.length > 0 && (
+                                <div>
+                                    <p className="text-emerald-500/80 text-[10px] font-bold uppercase tracking-widest mb-2 px-1 flex items-center gap-1.5">
+                                        <Monitor size={10} /> Auto-Detected Systems ({bSystems.length})
+                                    </p>
+                                    <div className="space-y-2">
+                                        {bSystems.map(s => (
+                                            <div key={s.id} className="flex items-center justify-between p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                                                <div>
+                                                    <p className="text-emerald-50 text-sm font-medium">{s.hostname}</p>
+                                                    <p className="text-emerald-400/60 text-[10px] font-mono mt-0.5">{s.ip} · {s.mac}</p>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                                                    <span className="text-emerald-400 text-[10px] font-bold uppercase">Live</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
                 })()}
             </Modal>
         </div>

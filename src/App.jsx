@@ -23,6 +23,7 @@ import AuditTrail from './pages/compliance/AuditTrail.jsx';
 import ReportGenerator from './pages/compliance/ReportGenerator.jsx';
 import QRScanner from './pages/scanner/QRScanner.jsx';
 import BuildingIPMapping from './pages/network/BuildingIPMapping.jsx';
+import NewSystems from './pages/network/NewSystems.jsx';
 
 const ProtectedRoute = ({ children }) => {
   const { currentUser } = useApp();
@@ -68,6 +69,7 @@ export default function App() {
           <Route path="scanner" element={<QRScanner />} />
 
           <Route path="network/ip-mapping" element={<BuildingIPMapping />} />
+          <Route path="network/new-systems" element={<NewSystems />} />
         </Route>
       </Routes>
     </div>

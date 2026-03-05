@@ -4,7 +4,7 @@ import { useApp, ROLES } from '../../context/AppContext.jsx';
 import {
     LayoutDashboard, Package, BarChart2, ShoppingCart, TrendingUp,
     Shield, QrCode, MapPin, Warehouse, Bell, Settings, ChevronLeft, X,
-    ChevronRight, Network,
+    ChevronRight, Network, Monitor,
 } from 'lucide-react';
 
 const navItems = [
@@ -33,6 +33,7 @@ const navItems = [
         ]
     },
     { label: 'QR Scanner', icon: QrCode, href: '/scanner' },
+    { label: 'New Systems', icon: Monitor, href: '/network/new-systems' },
 ];
 
 function NavItem({ item, collapsed, dashboardHref }) {

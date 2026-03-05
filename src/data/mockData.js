@@ -116,6 +116,21 @@ export const buildingIPMappings = [
     { id: 8, building_name: 'Seminar Hall', ip_range_start: '192.168.80.1', ip_range_end: '192.168.80.254', subnet: '192.168.80.0/24', code: 'SEM', vlan: 80, floor: 2, building_id: 'B8', gateway: '192.168.80.1', dns: '192.168.80.2', status: 'active' },
 ];
 
+// ─── Registered Systems (Agent-Reported) ─────────────────────────────────────
+// Auto-registered via the PC agent program installed on each endpoint.
+export const registeredSystems = [
+    { id: 'SYS-0001', asset_id: 'CLG-001', hostname: 'ADM-PC-01', ip: '192.168.10.45', mac: 'A4:BB:CC:DD:12:89', ram: '8 GB', cpu: 'Intel Core i5-10400', os: 'Windows 11 Pro', building: 'Admin Block', building_code: 'ADM', status: 'online', registered_at: '2024-01-15 09:10:00', last_seen: '2024-01-23 08:44:00', uptime: '14d 7h' },
+    { id: 'SYS-0002', asset_id: 'CLG-002', hostname: 'ADM-PC-02', ip: '192.168.10.78', mac: 'B7:CC:DD:EE:34:12', ram: '16 GB', cpu: 'Intel Core i7-11700', os: 'Windows 10 Pro', building: 'Admin Block', building_code: 'ADM', status: 'online', registered_at: '2024-01-15 09:15:00', last_seen: '2024-01-23 08:40:00', uptime: '14d 6h' },
+    { id: 'SYS-0003', asset_id: 'CLG-003', hostname: 'LIB-PC-01', ip: '192.168.20.12', mac: 'C1:DD:EE:FF:56:34', ram: '4 GB', cpu: 'Intel Core i3-9100', os: 'Windows 10 Home', building: 'Library', building_code: 'LIB', status: 'online', registered_at: '2024-01-16 10:00:00', last_seen: '2024-01-23 08:42:00', uptime: '6d 22h' },
+    { id: 'SYS-0004', asset_id: 'CLG-004', hostname: 'SCI-PC-01', ip: '192.168.40.22', mac: 'D4:EE:FF:00:78:56', ram: '16 GB', cpu: 'AMD Ryzen 5 5600X', os: 'Ubuntu 22.04 LTS', building: 'Science Lab', building_code: 'SCI', status: 'online', registered_at: '2024-01-17 08:30:00', last_seen: '2024-01-23 08:45:00', uptime: '5d 0h' },
+    { id: 'SYS-0005', asset_id: 'CLG-005', hostname: 'SCI-PC-02', ip: '192.168.40.47', mac: 'E9:FF:00:11:9A:78', ram: '32 GB', cpu: 'AMD Ryzen 7 5800X', os: 'Ubuntu 22.04 LTS', building: 'Science Lab', building_code: 'SCI', status: 'offline', registered_at: '2024-01-17 08:35:00', last_seen: '2024-01-21 15:30:00', uptime: '—' },
+    { id: 'SYS-0006', asset_id: 'CLG-006', hostname: 'SRV-NODE-01', ip: '192.168.50.10', mac: 'F2:00:11:22:BC:9A', ram: '64 GB', cpu: 'Intel Xeon E-2388G', os: 'Ubuntu Server 22.04', building: 'Server Room', building_code: 'SRV', status: 'online', registered_at: '2024-01-10 06:00:00', last_seen: '2024-01-23 08:45:00', uptime: '13d 2h' },
+    { id: 'SYS-0007', asset_id: 'CLG-007', hostname: 'CNF-PC-01', ip: '192.168.60.33', mac: 'A3:11:22:33:DE:BC', ram: '8 GB', cpu: 'Intel Core i5-12400', os: 'Windows 11 Pro', building: 'Conference Room', building_code: 'CNF', status: 'online', registered_at: '2024-01-18 11:00:00', last_seen: '2024-01-23 08:30:00', uptime: '4d 21h' },
+    { id: 'SYS-0008', asset_id: 'CLG-008', hostname: 'LHA-PC-01', ip: '192.168.30.55', mac: 'B6:22:33:44:F0:DE', ram: '8 GB', cpu: 'Intel Core i5-10400', os: 'Windows 10 Pro', building: 'Lecture Hall A', building_code: 'LHA', status: 'warning', registered_at: '2024-01-19 09:20:00', last_seen: '2024-01-23 07:15:00', uptime: '3d 22h' },
+    { id: 'SYS-0009', asset_id: 'CLG-009', hostname: 'SEM-PC-01', ip: '192.168.80.14', mac: 'C9:33:44:55:12:F0', ram: '16 GB', cpu: 'Intel Core i7-10700', os: 'Windows 11 Pro', building: 'Seminar Hall', building_code: 'SEM', status: 'online', registered_at: '2024-01-20 10:00:00', last_seen: '2024-01-23 08:43:00', uptime: '2d 22h' },
+    { id: 'SYS-0010', asset_id: 'CLG-010', hostname: 'STF-PC-01', ip: '192.168.70.88', mac: 'D2:44:55:66:34:12', ram: '8 GB', cpu: 'Intel Core i5-8400', os: 'Windows 10 Pro', building: 'Staff Room', building_code: 'STF', status: 'offline', registered_at: '2024-01-21 13:00:00', last_seen: '2024-01-22 18:00:00', uptime: '—' },
+];
+
 // ─── KPIs ─────────────────────────────────────────────────────────────────────
 export const kpis = {
     totalAssets: 1284,
