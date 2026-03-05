@@ -127,6 +127,16 @@ export const auditApi = {
     export: (data) => api.post('/reports/export', data),
 };
 
+// CITRA Audit Mode
+export const auditSessionsApi = {
+    list: (params = {}) => api.get('/audit-sessions?' + new URLSearchParams(params)),
+    start: (data) => api.post('/audit-sessions', data),
+    get: (id) => api.get(`/audit-sessions/${id}`),
+    scan: (id, data) => api.post(`/audit-sessions/${id}/scan`, data),
+    close: (id) => api.post(`/audit-sessions/${id}/close`, {}),
+    report: (id) => api.get(`/audit-sessions/${id}/report`),
+};
+
 export const locationsApi = {
     list: () => api.get('/locations'),
     get: (id) => api.get(`/locations/${id}`),

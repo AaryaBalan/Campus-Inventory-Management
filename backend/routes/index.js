@@ -11,6 +11,7 @@ router.use('/locations', require('./locations'));
 router.use('/users', require('./users'));
 router.use('/notifications', require('./notifications'));
 router.use('/bills', require('./bills'));
+router.use('/audit-sessions', require('./auditSessions')); // CITRA Audit Mode
 
 // 404 fallback for unmatched API routes
 router.use((req, res) => {

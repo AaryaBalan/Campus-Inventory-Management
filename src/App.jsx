@@ -23,6 +23,7 @@ import AuditTrail from './pages/compliance/AuditTrail.jsx';
 import ReportGenerator from './pages/compliance/ReportGenerator.jsx';
 import QRScanner from './pages/scanner/QRScanner.jsx';
 import BillExtractor from './pages/bills/BillExtractor.jsx';
+import AuditMode from './pages/audit/AuditMode.jsx';
 
 const ProtectedRoute = ({ children }) => {
   const { currentUser } = useApp();
@@ -68,6 +69,9 @@ export default function App() {
           <Route path="scanner" element={<QRScanner />} />
 
           <Route path="bills" element={<BillExtractor />} />
+
+          {/* CITRA Audit Mode */}
+          <Route path="audit" element={<AuditMode />} />
         </Route>
       </Routes>
     </div>
