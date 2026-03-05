@@ -3,8 +3,9 @@ import {
     ReceiptText, UploadCloud, Loader2, CheckCircle, AlertCircle,
     Pencil, Save, Trash2, X, ChevronDown, ChevronUp, FileText, Image,
     Calendar, Store, Tag, DollarSign, Plus, Minus,
+    PackagePlus, Boxes, ArrowRight, AlertTriangle,
 } from 'lucide-react';
-import { billsApi } from '../../utils/api.js';
+import { billsApi, assetApi } from '../../utils/api.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -218,16 +219,173 @@ function BillEditor({ bill, onSave, onDiscard }) {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-900 font-semibold rounded-xl text-sm transition-all disabled:opacity-60"
-                >
-                    {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <CheckCircle size={14} className="text-emerald-600" /> : <Save size={14} />}
-                    {saved ? 'Saved!' : saving ? 'Saving…' : 'Save Bill'}
-                </button>
+            <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-end gap-3">
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-900 font-semibold rounded-xl text-sm transition-all disabled:opacity-60"
+                    >
+                        {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <CheckCircle size={14} className="text-emerald-600" /> : <Save size={14} />}
+                        {saved ? 'Saved!' : saving ? 'Saving…' : 'Save Bill'}
+                    </button>
+                </div>
+
+                {/* CITRA: Create Assets from Invoice */}
+                {draft.items?.length > 0 && (
+                    <DraftAssetsPanel bill={draft} />
+                )}
             </div>
+        </div>
+    );
+}
+
+// ── DraftAssetsPanel ─────────────────────────────────────────────────────
+
+/**
+ * Shows draft asset records generated from a bill's line items.
+ * Lets the user set a shared department/location, review, then bulk-register.
+ */
+function DraftAssetsPanel({ bill }) {
+    const [open, setOpen] = useState(false);
+    const [department, setDepartment] = useState('');
+    const [location, setLocation] = useState('');
+    const [drafts, setDrafts] = useState(bill.draftAssets || []);
+    const [loading, setLoading] = useState(false);
+    const [done, setDone] = useState(null);
+    const [err, setErr] = useState(null);
+
+    // Re-fetch drafts with dept/location when user fills those fields
+    const refreshDrafts = async () => {
+        try {
+            const data = await billsApi.draftAssets(bill.billId, { department, location });
+            setDrafts(data.draftAssets || []);
+        } catch {
+            // keep existing drafts
+        }
+    };
+
+    const handleRegister = async () => {
+        if (!drafts.length) return;
+        setLoading(true);
+        setErr(null);
+        try {
+            // Strip internal draft flags before sending
+            const payload = drafts.map(({ _isDraft, _draftIndex, _lineItemQty, ...d }) => d);
+            await assetApi.bulkCreate(payload);
+            setDone({ count: payload.length });
+        } catch (e) {
+            setErr(e.message || 'Failed to register assets.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const itemCount = drafts.length;
+
+    return (
+        <div className="border border-blue-500/20 bg-blue-500/5 rounded-xl overflow-hidden">
+            {/* Toggle header */}
+            <button
+                onClick={() => setOpen(v => !v)}
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-blue-500/10 transition-colors"
+            >
+                <div className="flex items-center gap-2.5">
+                    <PackagePlus size={16} className="text-blue-400 shrink-0" />
+                    <div>
+                        <p className="text-blue-300 font-semibold text-sm">
+                            Create Assets from Invoice
+                        </p>
+                        <p className="text-blue-400/60 text-xs">
+                            {itemCount} draft asset{itemCount !== 1 ? 's' : ''} ready to register
+                        </p>
+                    </div>
+                </div>
+                {open ? <ChevronUp size={14} className="text-blue-400/60" /> : <ChevronDown size={14} className="text-blue-400/60" />}
+            </button>
+
+            {/* Expanded panel */}
+            {open && (
+                <div className="border-t border-blue-500/15 px-4 py-4 space-y-4">
+                    {done ? (
+                        <div className="flex flex-col items-center gap-2 py-4 text-center">
+                            <CheckCircle size={28} className="text-emerald-400" />
+                            <p className="text-white font-semibold text-sm">{done.count} assets registered!</p>
+                            <p className="text-zinc-500 text-xs">They now appear in the Assets module with CITRA IDs.</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Shared dept + location inputs */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold block mb-1">
+                                        Department
+                                    </label>
+                                    <input
+                                        value={department}
+                                        onChange={e => setDepartment(e.target.value)}
+                                        onBlur={refreshDrafts}
+                                        placeholder="e.g. Electronics"
+                                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-all"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold block mb-1">
+                                        Location
+                                    </label>
+                                    <input
+                                        value={location}
+                                        onChange={e => setLocation(e.target.value)}
+                                        onBlur={refreshDrafts}
+                                        placeholder="e.g. Lab 204"
+                                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Draft previews */}
+                            {drafts.length > 0 ? (
+                                <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                                    {drafts.map((d, i) => (
+                                        <div key={i} className="flex items-center justify-between bg-zinc-900/60 border border-zinc-800 rounded-lg px-3 py-2">
+                                            <div className="min-w-0">
+                                                <p className="text-zinc-200 text-xs font-medium truncate">{d.name}</p>
+                                                <p className="text-zinc-500 text-[10px]">
+                                                    {d.category} · {d.purchaseValue ? fmt(d.purchaseValue) : 'No price'}
+                                                    {d._lineItemQty > 1 && ` · unit ${d._draftIndex + 1} of ${d._lineItemQty}`}
+                                                </p>
+                                            </div>
+                                            <span className="text-zinc-600 text-[10px] font-mono ml-3 shrink-0">DRAFT</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-zinc-600 text-xs text-center py-3">
+                                    No line items found on this bill to convert.
+                                </p>
+                            )}
+
+                            {err && (
+                                <div className="flex items-center gap-2 text-red-400 text-xs bg-red-500/10 rounded-lg px-3 py-2">
+                                    <AlertTriangle size={12} /> {err}
+                                </div>
+                            )}
+
+                            <button
+                                onClick={handleRegister}
+                                disabled={loading || !drafts.length}
+                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm transition-all
+                                    bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {loading
+                                    ? <><Loader2 size={14} className="animate-spin" /> Registering…</>
+                                    : <><Boxes size={14} /> Register {drafts.length} Asset{drafts.length !== 1 ? 's' : ''}</>
+                                }
+                            </button>
+                        </>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
