@@ -1,0 +1,49 @@
+{
+    "expo": {
+        "name": "CITIL",
+        "slug": "citil-mobile",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/icon.png",
+        "userInterfaceStyle": "dark",
+        "splash": {
+            "image": "./assets/splash-icon.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#0B1120"
+        },
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.citil.mobile",
+            "infoPlist": {
+                "NSCameraUsageDescription": "CITIL needs camera access to scan QR codes and capture bill images.",
+                "NSPhotoLibraryUsageDescription": "CITIL needs photo library access to upload bill images."
+            }
+        },
+        "android": {
+            "adaptiveIcon": {
+                "foregroundImage": "./assets/adaptive-icon.png",
+                "backgroundColor": "#0B1120"
+            },
+            "package": "com.citil.mobile",
+            "permissions": [
+                "CAMERA",
+                "READ_EXTERNAL_STORAGE"
+            ]
+        },
+        "web": {
+            "favicon": "./assets/favicon.png"
+        },
+        "plugins": [
+            "expo-secure-store",
+            "expo-camera",
+            "expo-barcode-scanner",
+            [
+                "expo-image-picker",
+                {
+                    "photosPermission": "CITIL needs access to your photos to upload bill images."
+                }
+            ]
+        ],
+        "sdkVersion": "54.0.0"
+    }
+}
