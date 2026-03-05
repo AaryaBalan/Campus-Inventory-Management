@@ -8,6 +8,7 @@ const { createError } = require('../middleware/errorHandler');
 
 const PR_COL = 'purchaseRequests';
 const AQ_COL = 'approvalQueues';
+const ASSETS_COL = 'assets';
 
 // ─────────────────────────────────────────────
 // PURCHASE REQUEST LIFECYCLE
@@ -88,11 +89,16 @@ async function updateRequest(requestId, data, user) {
 
 /**
  * Submit a draft request → enters approval queue.
+ * CITRA: Runs a duplicate-asset check before submission and attaches warnings.
  */
 async function submitRequest(requestId, user) {
     const pr = await getRequest(requestId);
     if (pr.status !== 'Draft') throw createError('Only draft requests can be submitted', 422);
     if (pr.requesterUserId !== user.uid) throw createError('You can only submit your own requests', 403);
+
+    // ── CITRA: Procurement Intelligence ────────────────────────────────────────
+    const duplicateWarnings = await checkForDuplicateAssets(pr.items, pr.requesterDepartment);
+    // ───────────────────────────────────────────────────────────────────────
 
     const nextStage = 'Pending-DeptHead';
 
@@ -101,6 +107,7 @@ async function submitRequest(requestId, user) {
         currentStage: 'DeptHead',
         submittedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        duplicateWarnings,          // store so approvers can see it
     });
 
     // Create approval queue item for all Department Head users
@@ -110,7 +117,8 @@ async function submitRequest(requestId, user) {
         type: 'PendingApproval',
         severity: pr.priority === 'Urgent' ? 'Critical' : 'Info',
         message: `New purchase request ${requestId} awaiting dept. head approval`,
-        description: `Submitted by ${user.name}. Total: ₹${pr.totalEstimatedCost.toFixed(2)}`,
+        description: `Submitted by ${user.name}. Total: ₹${pr.totalEstimatedCost.toFixed(2)}${duplicateWarnings.length ? ` ⚠️ ${duplicateWarnings.length} possible duplicate asset(s) flagged.` : ''
+            }`,
     });
 
     await auditService.log({
@@ -118,14 +126,14 @@ async function submitRequest(requestId, user) {
         action: 'SUBMIT',
         entityType: 'PurchaseRequest',
         entityId: requestId,
-        details: `PR submitted for approval (stage: ${nextStage})`,
+        details: `PR submitted for approval (stage: ${nextStage}). Duplicate warnings: ${duplicateWarnings.length}`,
     });
 
     // Notify department heads and admins
     notificationService.notifyProcurement('submitted', { ...pr, requestId }).catch(() => { });
 
-    emit('procurement', { event: 'PR_SUBMITTED', data: { requestId, status: nextStage } });
-    return { requestId, status: nextStage };
+    emit('procurement', { event: 'PR_SUBMITTED', data: { requestId, status: nextStage, duplicateWarnings } });
+    return { requestId, status: nextStage, duplicateWarnings };
 }
 
 /**
@@ -253,7 +261,63 @@ async function getApprovalQueue(user) {
     return snap.docs.map(d => d.data());
 }
 
-// ── Internal helpers ───────────────────────────────────────────────────────
+// ── CITRA Procurement Intelligence ────────────────────────────────────────────────
+
+/**
+ * For each item in a purchase request, search the assets collection for
+ * existing assets with a matching category (and optionally matching department).
+ * Returns a warnings array that gets stored on the PR for approvers to review.
+ *
+ * @param {object[]} items         - PR line items  [{ name, category, quantity, ... }]
+ * @param {string}   department    - Requester's department
+ * @returns {Promise<object[]>}    - Array of { itemName, matchCount, matches[] }
+ */
+async function checkForDuplicateAssets(items, department) {
+    const warnings = [];
+
+    for (const item of items) {
+        if (!item.category) continue;
+
+        // Search by category in the same department first, then globally
+        let snap = await db.collection(ASSETS_COL)
+            .where('category', '==', item.category)
+            .where('currentDepartment', '==', department)
+            .where('status', '==', 'Active')
+            .limit(5)
+            .get();
+
+        // If none in dept, try institution-wide
+        if (snap.empty) {
+            snap = await db.collection(ASSETS_COL)
+                .where('category', '==', item.category)
+                .where('status', '==', 'Active')
+                .limit(5)
+                .get();
+        }
+
+        if (!snap.empty) {
+            const matches = snap.docs.map(d => ({
+                assetId: d.data().assetId,
+                name: d.data().name,
+                currentDepartment: d.data().currentDepartment,
+                currentLocation: d.data().currentLocation,
+                health: d.data().health,
+            }));
+
+            warnings.push({
+                itemName: item.name || item.category,
+                category: item.category,
+                matchCount: snap.size,
+                matches,
+                sameDepartment: matches.some(m => m.currentDepartment === department),
+            });
+        }
+    }
+
+    return warnings;
+}
+
+// ── Internal helpers ────────────────────────────────────────────────────────
 
 async function _createApprovalQueueItem(requestId, requestType, department, role, user) {
     const queueId = uuidv4();
@@ -300,4 +364,5 @@ module.exports = {
     createRequest, getRequest, listRequests, updateRequest,
     submitRequest, approveRequest, rejectRequest,
     getApprovalHistory, getApprovalQueue,
+    checkForDuplicateAssets,
 };
