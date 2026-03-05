@@ -192,6 +192,9 @@ export const billsApi = {
     get: (id) => api.get(`/bills/${id}`),
     update: (id, data) => request(`/bills/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id) => api.delete(`/bills/${id}`),
+    // CITRA: fetch draft assets for a saved bill
+    draftAssets: (id, { department = '', location = '' } = {}) =>
+        api.get(`/bills/${id}/draft-assets?department=${encodeURIComponent(department)}&location=${encodeURIComponent(location)}`),
 };
 
 export default api;

@@ -91,8 +91,11 @@ router.post('/extract', authenticate, (req, res, next) => {
             fileName: file.originalname,
         });
 
-        logger.info(`[Bills] Saved bill ${bill.billId} for user ${req.user.uid}`);
-        res.status(201).json(bill);
+        // Step 4 — CITRA: Generate draft asset records from line items
+        const draftAssets = billService.generateDraftAssets(bill);
+
+        logger.info(`[Bills] Saved bill ${bill.billId}, generated ${draftAssets.length} draft assets for user ${req.user.uid}`);
+        res.status(201).json({ ...bill, draftAssets });
     } catch (err) {
         next(err);
     } finally {
@@ -133,6 +136,25 @@ router.delete('/:id', authenticate, async (req, res, next) => {
     try {
         const result = await billService.deleteBill(req.user.uid, req.params.id);
         res.json(result);
+    } catch (e) { next(e); }
+});
+
+// ── CITRA: GET /api/bills/:id/draft-assets ────────────────────────────────
+// Returns structured draft asset records generated from a bill's line items.
+// Accepts optional query params: ?department=ECE&location=Electronics+Lab
+
+router.get('/:id/draft-assets', authenticate, async (req, res, next) => {
+    try {
+        const bill = await billService.getBill(req.user.uid, req.params.id);
+        const { department = '', location = '' } = req.query;
+        const draftAssets = billService.generateDraftAssets(bill, department, location);
+        res.json({
+            billId: req.params.id,
+            vendor: bill.vendor,
+            date: bill.date,
+            draftAssets,
+            total: draftAssets.length,
+        });
     } catch (e) { next(e); }
 });
 
