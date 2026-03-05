@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { RefreshCw, AlertTriangle, TrendingDown, Loader2 } from 'lucide-react';
+import { RefreshCw, AlertTriangle, TrendingDown, Loader2, CalendarClock, TrendingUp, Minus, ChevronDown, ChevronUp } from 'lucide-react';
 import StatusIndicator from '../../components/ui/StatusIndicator.jsx';
-import { inventoryApi } from '../../utils/api.js';
+import { inventoryApi, analyticsApi } from '../../utils/api.js';
 
 const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
@@ -19,6 +19,9 @@ export default function StockLevels() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [autoReorder, setAutoReorder] = useState({});
+    const [timing, setTiming] = useState([]);
+    const [timingLoading, setTimingLoading] = useState(true);
+    const [timingOpen, setTimingOpen] = useState(true);
 
     const fetchItems = useCallback(async () => {
         setLoading(true);
@@ -33,7 +36,19 @@ export default function StockLevels() {
         }
     }, []);
 
-    useEffect(() => { fetchItems(); }, [fetchItems]);
+    const fetchTiming = useCallback(async () => {
+        setTimingLoading(true);
+        try {
+            const data = await analyticsApi.reorderTiming();
+            setTiming(data.recommendations || []);
+        } catch {
+            setTiming([]);
+        } finally {
+            setTimingLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { fetchItems(); fetchTiming(); }, [fetchItems, fetchTiming]);
 
     // Normalise backend status ('In-Stock','Low','Critical') → ui tokens
     const uiStatus = (s) => s === 'In-Stock' ? 'ok' : s === 'Low' ? 'low' : 'critical';
@@ -82,6 +97,101 @@ export default function StockLevels() {
                     <p className="text-red-400 text-sm">{error}</p>
                 </div>
             )}
+
+            {/* CITRA: Reorder Timing Panel */}
+            <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl overflow-hidden">
+                <button
+                    onClick={() => setTimingOpen(v => !v)}
+                    className="w-full flex items-center justify-between px-5 py-4 hover:bg-zinc-800/30 transition-colors"
+                >
+                    <div className="flex items-center gap-2.5">
+                        <CalendarClock size={16} className="text-blue-400" />
+                        <h3 className="text-white font-semibold text-sm">Reorder Timing Recommendations</h3>
+                        {timing.filter(t => t.urgency === 'Critical').length > 0 && (
+                            <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-semibold">
+                                {timing.filter(t => t.urgency === 'Critical').length} Critical
+                            </span>
+                        )}
+                    </div>
+                    {timingOpen ? <ChevronUp size={14} className="text-zinc-500" /> : <ChevronDown size={14} className="text-zinc-500" />}
+                </button>
+
+                {timingOpen && (
+                    <div className="border-t border-zinc-800/60">
+                        {timingLoading ? (
+                            <div className="flex items-center justify-center py-10">
+                                <Loader2 size={20} className="animate-spin text-zinc-500" />
+                            </div>
+                        ) : timing.length === 0 ? (
+                            <div className="text-center py-10 text-zinc-600 text-sm">
+                                No reorder recommendations — all items have sufficient stock.
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-zinc-800/50">
+                                {timing.map(rec => {
+                                    const urgencyStyle = {
+                                        Critical: 'border-red-500/40 bg-red-500/5 text-red-400',
+                                        High: 'border-orange-500/40 bg-orange-500/5 text-orange-400',
+                                        Medium: 'border-amber-500/40 bg-amber-500/5 text-amber-400',
+                                        Low: 'border-zinc-500/30 bg-zinc-500/5 text-zinc-400',
+                                    }[rec.urgency] || 'border-zinc-700 text-zinc-400';
+
+                                    const velocityIcon = rec.velocityTrend === 'Accelerating'
+                                        ? <TrendingUp size={11} className="text-red-400" />
+                                        : rec.velocityTrend === 'Decelerating'
+                                            ? <TrendingDown size={11} className="text-emerald-400" />
+                                            : <Minus size={11} className="text-zinc-500" />;
+
+                                    return (
+                                        <div key={rec.inventoryId} className="flex items-center gap-4 px-5 py-4">
+                                            {/* Urgency ring */}
+                                            <div className={`shrink-0 w-14 h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 ${urgencyStyle}`}>
+                                                <span className="text-lg font-bold leading-none">
+                                                    {rec.daysUntilOrder === 0 ? '!' : rec.daysUntilOrder}
+                                                </span>
+                                                <span className="text-[9px] uppercase tracking-wider opacity-70">
+                                                    {rec.daysUntilOrder === 0 ? 'Order Now' : 'days'}
+                                                </span>
+                                            </div>
+
+                                            {/* Details */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <p className="text-zinc-100 text-sm font-semibold truncate">{rec.itemName}</p>
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${urgencyStyle}`}>
+                                                        {rec.urgency}
+                                                    </span>
+                                                    <span className="flex items-center gap-1 text-[10px] text-zinc-500">
+                                                        {velocityIcon} {rec.velocityTrend}
+                                                    </span>
+                                                </div>
+                                                <p className="text-zinc-500 text-xs mt-0.5">
+                                                    Order by <span className="text-zinc-300">{rec.recommendedOrderDate}</span>
+                                                    {' · '}Stock out <span className="text-zinc-300">{rec.estimatedStockoutDate}</span>
+                                                    {' · '}{rec.currentQuantity} {rec.unit} remaining
+                                                </p>
+                                            </div>
+
+                                            {/* Quantity guidance */}
+                                            <div className="shrink-0 text-right hidden sm:block">
+                                                <p className="text-zinc-500 text-[10px] uppercase tracking-wide mb-1">Order Qty</p>
+                                                <p className="text-zinc-200 text-xs font-mono">
+                                                    <span className="text-zinc-500">{rec.orderQuantity.min}</span>
+                                                    {' – '}
+                                                    <span className="text-blue-300 font-bold">{rec.orderQuantity.optimal}</span>
+                                                    {' – '}
+                                                    <span className="text-zinc-500">{rec.orderQuantity.max}</span>
+                                                </p>
+                                                <p className="text-zinc-600 text-[10px]">min · optimal · max</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
 
             {/* Stock grid */}
             <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl overflow-hidden">

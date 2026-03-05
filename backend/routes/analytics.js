@@ -40,6 +40,15 @@ router.get('/predictions/demand-forecast', authenticate, checkPermission('read',
     try { res.json(await predictiveSvc.getDemandForecast()); } catch (e) { next(e); }
 });
 
+// CITRA: precise reorder timing with lead-time awareness, safety stock, velocity trend
+router.get('/predictions/reorder-timing', authenticate, checkPermission('read', 'analyticsMetrics'), async (req, res, next) => {
+    try {
+        const leadDays = req.query.leadDays ? parseInt(req.query.leadDays) : undefined;
+        const recommendations = await predictiveSvc.getReorderTimingRecommendations(leadDays);
+        res.json({ recommendations, total: recommendations.length, generatedAt: new Date().toISOString() });
+    } catch (e) { next(e); }
+});
+
 // ── Manual triggers (admin only) ──────────────────────────────────────────
 
 // POST /analytics/snapshot — persist a daily analytics snapshot now

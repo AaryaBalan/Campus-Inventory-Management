@@ -115,6 +115,8 @@ export const analyticsApi = {
     reorderTips: () => api.get('/predictions/reorder-suggestions'),
     anomalies: () => api.get('/predictions/anomalies'),
     demandForecast: () => api.get('/predictions/demand-forecast'),
+    // CITRA: precise reorder timing with safety-stock & velocity trend
+    reorderTiming: (leadDays) => api.get(`/predictions/reorder-timing${leadDays ? `?leadDays=${leadDays}` : ''}`),
 };
 
 export const auditApi = {

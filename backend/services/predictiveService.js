@@ -128,6 +128,98 @@ async function getDemandForecast() {
     }));
 }
 
+/**
+ * CITRA – Reorder Timing Recommendations
+ *
+ * Goes beyond a simple "order soon" flag. For each inventory item with a
+ * measurable consumption rate, this produces:
+ *   • recommendedOrderDate  – the exact date to place a purchase order,
+ *                             accounting for the item's lead time so stock
+ *                             doesn't run out while waiting for delivery.
+ *   • orderQuantity         – min / optimal / max quantities based on a
+ *                             safety-stock formula (consumption × cover days).
+ *   • urgency               – Critical / High / Medium / Low
+ *   • velocityTrend         – Accelerating / Stable / Decelerating
+ *                             (derived from the 30d vs 7d rate if available)
+ *
+ * @param {number} [defaultLeadDays=14] - Assumed procurement lead time in days
+ * @returns {Promise<object[]>}
+ */
+async function getReorderTimingRecommendations(defaultLeadDays = 14) {
+    const snap = await db.collection(INV_COL)
+        .where('status', 'in', ['In-Stock', 'Low'])
+        .get();
+
+    const recommendations = [];
+
+    snap.docs.forEach(doc => {
+        const item = doc.data();
+        const rate = item.consumptionRate || 0;           // units/day (long-term avg)
+        const rate7d = item.consumptionRate7d || rate;   // units/day (short-term, optional field)
+        if (rate <= 0) return;
+
+        const leadDays = item.leadTimeDays || defaultLeadDays;
+        const currentQty = item.currentQuantity || 0;
+        const reorderLevel = item.reorderLevel || 0;
+
+        // ── Key timing calculation ────────────────────────────────────────────────
+        // Days until stock hits the reorder level (not zero)
+        const daysUntilReorderLevel = reorderLevel > 0
+            ? Math.max(0, Math.floor((currentQty - reorderLevel) / rate))
+            : Math.floor(currentQty / rate);
+
+        // When to place the order = reorder point minus lead time
+        const daysUntilOrder = Math.max(0, daysUntilReorderLevel - leadDays);
+        const recommendedOrderDate = dayjs().add(daysUntilOrder, 'day').format('YYYY-MM-DD');
+        const estimatedStockoutDate = dayjs().add(Math.floor(currentQty / rate), 'day').format('YYYY-MM-DD');
+
+        // ── Order quantity (safety-stock model) ──────────────────────────────────
+        const safetyStock = Math.ceil(rate * leadDays * 0.5);   // 50% of lead-time consumption
+        const minOrder = Math.max(reorderLevel, Math.ceil(rate * leadDays));
+        const optimalOrder = Math.ceil(rate * 90) + safetyStock; // 90-day supply + safety stock
+        const maxOrder = Math.ceil(rate * 120);                  // capped at 4-month supply
+
+        // ── Urgency tier ───────────────────────────────────────────────────────
+        let urgency;
+        if (daysUntilOrder <= 0) urgency = 'Critical';          // should have ordered already
+        else if (daysUntilOrder <= 7) urgency = 'High';
+        else if (daysUntilOrder <= 21) urgency = 'Medium';
+        else urgency = 'Low';
+
+        // ── Velocity trend ──────────────────────────────────────────────────────────
+        const ratioDiff = rate7d / rate;
+        let velocityTrend;
+        if (ratioDiff > 1.2) velocityTrend = 'Accelerating';
+        else if (ratioDiff < 0.8) velocityTrend = 'Decelerating';
+        else velocityTrend = 'Stable';
+
+        recommendations.push({
+            inventoryId: item.inventoryId,
+            itemName: item.itemName,
+            category: item.category,
+            unit: item.unit,
+            currentQuantity: currentQty,
+            consumptionRate: rate,
+            consumptionRate7d: rate7d,
+            velocityTrend,
+            leadTimeDays: leadDays,
+            daysUntilOrder,
+            recommendedOrderDate,
+            estimatedStockoutDate,
+            urgency,
+            orderQuantity: { min: minOrder, optimal: optimalOrder, max: maxOrder },
+            safetyStock,
+            confidence: _confidence(item, 30),
+        });
+    });
+
+    // Sort by most urgent (Critical first, then by daysUntilOrder asc)
+    const urgencyRank = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+    return recommendations.sort((a, b) =>
+        (urgencyRank[a.urgency] - urgencyRank[b.urgency]) || (a.daysUntilOrder - b.daysUntilOrder)
+    );
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function _confidence(item, horizon) {
@@ -138,4 +230,4 @@ function _confidence(item, horizon) {
     return 0.60;
 }
 
-module.exports = { predictShortages, getReorderSuggestions, detectAnomalies, getDemandForecast };
+module.exports = { predictShortages, getReorderSuggestions, detectAnomalies, getDemandForecast, getReorderTimingRecommendations };
