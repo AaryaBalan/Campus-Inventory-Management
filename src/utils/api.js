@@ -1,130 +1,98 @@
-import storage from './storage';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
 const TOKEN_KEY = 'citil_auth_token';
 
-// ── Token Helpers ─────────────────────────────────────────────────────────────
-export const storeToken = async (t) => storage.setItem(TOKEN_KEY, t);
-export const getToken = async () => storage.getItem(TOKEN_KEY);
-export const removeToken = async () => storage.removeItem(TOKEN_KEY);
-
-// ── AsyncStorage Cache Helpers ────────────────────────────────────────────────
-export const cacheSet = async (key, data) => {
-    try { await AsyncStorage.setItem(key, JSON.stringify({ data, ts: Date.now() })); } catch (_) { }
-};
-export const cacheGet = async (key, maxAge = 5 * 60 * 1000) => {
-    try {
-        const raw = await AsyncStorage.getItem(key);
-        if (!raw) return null;
-        const { data, ts } = JSON.parse(raw);
-        return Date.now() - ts < maxAge ? data : null;
-    } catch (_) { return null; }
-};
-
-// ── Core Fetch ────────────────────────────────────────────────────────────────
-const request = async (method, path, body = null, headers = {}) => {
-    const token = await getToken();
-    const h = { 'Content-Type': 'application/json', ...headers };
-    if (token) h['Authorization'] = `Bearer ${token}`;
-
-    const cfg = { method, headers: h };
-    if (body && method !== 'GET') cfg.body = JSON.stringify(body);
-
-    try {
-        const res = await fetch(`${BASE_URL}${path}`, cfg);
-        if (res.status === 401) { await removeToken(); throw new Error('UNAUTHORIZED'); }
-        if (res.status === 204) return null;
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
-        return data;
-    } catch (err) {
-        if (err.message === 'Network request failed') throw new Error('Cannot connect to server. Check your connection.');
-        throw err;
+// ── Token Storage Helpers ─────────────────────────────────────────────────────
+export const storeToken = async (token) => {
+    if (Platform.OS === 'web') {
+        localStorage.setItem(TOKEN_KEY, token);
+    } else {
+        await SecureStore.setItemAsync(TOKEN_KEY, token);
     }
 };
 
-export const api = {
-    get: (path, h) => request('GET', path, null, h),
-    post: (path, b, h) => request('POST', path, b, h),
-    put: (path, b, h) => request('PUT', path, b, h),
-    patch: (path, b, h) => request('PATCH', path, b, h),
-    delete: (path, h) => request('DELETE', path, null, h),
+export const getToken = async () => {
+    if (Platform.OS === 'web') {
+        return localStorage.getItem(TOKEN_KEY);
+    }
+    return await SecureStore.getItemAsync(TOKEN_KEY);
 };
+
+export const removeToken = async () => {
+    if (Platform.OS === 'web') {
+        localStorage.removeItem(TOKEN_KEY);
+    } else {
+        await SecureStore.deleteItemAsync(TOKEN_KEY);
+    }
+};
+
+// ── Axios Instance ────────────────────────────────────────────────────────────
+const apiClient = axios.create({
+    baseURL: BASE_URL,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+
+// ── Request Interceptor ───────────────────────────────────────────────────
+apiClient.interceptors.request.use(
+    async (config) => {
+        const token = await getToken();
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
+// ── Response Interceptor ────────────────────────
+apiClient.interceptors.response.use(
+    (response) => response.data,
+    async (error) => {
+        if (error.response?.status === 401) {
+            await removeToken();
+        }
+        return Promise.reject(error);
+    }
+);
 
 // ── Domain Helpers ────────────────────────────────────────────────────────────
-export const authApi = {
-    getMe: () => api.get('/auth/me'),
-    verify: () => api.get('/auth/verify'),
+export const authAPI = {
+    getProfile: () => apiClient.get('/auth/profile'),
+    getMe: () => apiClient.get('/auth/me'),
 };
 
-export const assetsApi = {
-    list: (q = '') => api.get(`/assets${q}`),
-    get: (id) => api.get(`/assets/${id}`),
-    create: (d) => api.post('/assets', d),
-    update: (id, d) => api.put(`/assets/${id}`, d),
-    transfer: (id, d) => api.post(`/assets/${id}/transfer`, d),
-    movements: (id) => api.get(`/assets/${id}/movements`),
-    verifyQR: (token) => api.get(`/assets/qr/verify?token=${token}`),
+export const assetsAPI = {
+    getAssets: (params) => apiClient.get('/assets', { params }),
+    getAssetById: (id) => apiClient.get(`/assets/${id}`),
+    create: (data) => apiClient.post('/assets', data),
+    update: (id, data) => apiClient.put(`/assets/${id}`, data),
 };
 
-export const inventoryApi = {
-    list: (q = '') => api.get(`/inventory${q}`),
-    get: (id) => api.get(`/inventory/${id}`),
-    create: (d) => api.post('/inventory', d),
-    update: (id, d) => api.put(`/inventory/${id}`, d),
-    adjust: (id, d) => api.post(`/inventory/${id}/adjust`, d),
-    lowStock: () => api.get('/inventory/low-stock'),
-    trends: () => api.get('/inventory/consumption-trends'),
+export const inventoryAPI = {
+    getInventory: () => apiClient.get('/inventory'),
+    getLowStock: () => apiClient.get('/inventory/low-stock'),
+    update: (id, data) => apiClient.put(`/inventory/${id}`, data),
 };
 
-export const procurementApi = {
-    list: (q = '') => api.get(`/purchase-requests${q}`),
-    get: (id) => api.get(`/purchase-requests/${id}`),
-    create: (d) => api.post('/purchase-requests', d),
-    submit: (id) => api.post(`/purchase-requests/${id}/submit`),
-    approve: (id, d) => api.post(`/purchase-requests/${id}/approve`, d),
-    reject: (id, d) => api.post(`/purchase-requests/${id}/reject`, d),
-    queue: () => api.get('/approval-queue'),
+export const procurementAPI = {
+    getRequests: () => apiClient.get('/purchase-requests'),
+    getRequestById: (id) => apiClient.get(`/purchase-requests/${id}`),
+    create: (data) => apiClient.post('/purchase-requests', data),
+    getQueue: () => apiClient.get('/approval-queue'),
 };
 
-export const analyticsApi = {
-    dashboard: () => api.get('/analytics/dashboard'),
-    assets: () => api.get('/analytics/assets'),
-    inventory: () => api.get('/analytics/inventory'),
-    procurement: () => api.get('/analytics/procurement'),
-    shortages: () => api.get('/predictions/shortages'),
-    anomalies: () => api.get('/predictions/anomalies'),
-    forecast: () => api.get('/predictions/demand-forecast'),
-    reorder: () => api.get('/predictions/reorder-suggestions'),
+export const notificationsAPI = {
+    getNotifications: () => apiClient.get('/notifications'),
+    markRead: (id) => apiClient.patch(`/notifications/${id}/read`),
 };
 
-export const alertsApi = {
-    list: () => api.get('/alerts'),
-    active: () => api.get('/alerts/active'),
-    acknowledge: (id) => api.post(`/alerts/${id}/acknowledge`),
-    resolve: (id) => api.post(`/alerts/${id}/resolve`),
+export const analyticsAPI = {
+    getDashboard: () => apiClient.get('/analytics/dashboard'),
 };
 
-export const notificationsApi = {
-    list: () => api.get('/notifications'),
-    markRead: (id) => api.patch(`/notifications/${id}/read`),
-    markAll: () => api.patch('/notifications/read-all'),
-    delete: (id) => api.delete(`/notifications/${id}`),
-    clearAll: () => api.delete('/notifications'),
-};
-
-export const billsApi = {
-    list: () => api.get('/bills'),
-    get: (id) => api.get(`/bills/${id}`),
-    update: (id, d) => api.put(`/bills/${id}`, d),
-    delete: (id) => api.delete(`/bills/${id}`),
-};
-
-export const auditApi = {
-    list: (q = '') => api.get(`/audit-logs${q}`),
-    byAsset: (id) => api.get(`/audit-logs/by-asset/${id}`),
-    byUser: (id) => api.get(`/audit-logs/by-user/${id}`),
-};
-
-export default api;
+export default apiClient;

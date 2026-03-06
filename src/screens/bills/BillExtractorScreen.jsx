@@ -2,17 +2,17 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { getToken } from '../../utils/api';
 import { colors, spacing, fontSize, radius, shadows } from '../../theme';
+import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
-
 export default function BillExtractorScreen() {
+    const { isDemoMode } = useAuth();
     const [image, setImage] = useState(null);
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
 
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -32,17 +32,44 @@ export default function BillExtractorScreen() {
         if (!image) return;
         setLoading(true);
         try {
-            const token = await getToken();
-            const fd = new FormData();
-            fd.append('bill', { uri: image.uri, type: 'image/jpeg', name: 'bill.jpg' });
-            const res = await fetch(`${BASE_URL}/bills/extract`, {
-                method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }, body: fd,
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data?.message || 'Extraction failed');
-            setResult(data);
-        } catch (e) { Alert.alert('Error', e.message); }
-        finally { setLoading(false); }
+            if (isDemoMode) {
+                // Simulated OCR delay
+                await new Promise(r => setTimeout(r, 2000));
+                setResult({
+                    vendor: 'Office Depot',
+                    date: new Date().toLocaleDateString(),
+                    total: 4500.00,
+                    gst: 810.00,
+                    items: [
+                        { name: 'Ergonomic Desk Chair', amount: 3500 },
+                        { name: 'Wireless Mouse', amount: 1000 }
+                    ]
+                });
+            } else {
+                const fd = new FormData();
+                // @ts-ignore
+                fd.append('bill', { uri: image.uri, type: 'image/jpeg', name: 'bill.jpg' });
+                const { default: api } = await import('../../utils/api');
+                const res = await api.post('/bills/extract', fd, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
+                setResult(res);
+            }
+        } catch (e) {
+            Alert.alert('Error', e.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const saveToProcurement = async () => {
+        setSaving(true);
+        try {
+            await new Promise(r => setTimeout(r, 1500));
+            Alert.alert('Success', 'Bill data saved to Procurement as a pending request.');
+            setResult(null);
+            setImage(null);
+        } catch (_) { } finally { setSaving(false); }
     };
 
     return (
@@ -88,6 +115,13 @@ export default function BillExtractorScreen() {
                             </Card>
                         </>
                     )}
+                    <Button
+                        title="Save to Procurement"
+                        onPress={saveToProcurement}
+                        loading={saving}
+                        style={{ marginTop: 10 }}
+                        rightIcon="checkmark-circle"
+                    />
                 </>
             )}
         </ScrollView>

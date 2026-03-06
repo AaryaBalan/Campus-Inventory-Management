@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { assetsApi } from '../../utils/api';
+import { assetsAPI } from '../../utils/api';
 import { colors, spacing, fontSize } from '../../theme';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
@@ -15,7 +15,7 @@ export default function AssetRegisterScreen({ navigation }) {
         if (!form.name || !form.category) { Alert.alert('Required Fields', 'Name and category are required.'); return; }
         setLoading(true);
         try {
-            await assetsApi.create({ ...form, purchaseValue: parseFloat(form.purchaseValue) || 0, condition: 'good', status: 'active' });
+            await assetsAPI.create({ ...form, purchaseValue: parseFloat(form.purchaseValue) || 0, condition: 'good', status: 'active' });
             Alert.alert('Success', 'Asset registered successfully!', [{ text: 'OK', onPress: () => navigation.goBack() }]);
         } catch (e) { Alert.alert('Error', e.message); }
         finally { setLoading(false); }

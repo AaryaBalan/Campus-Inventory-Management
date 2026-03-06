@@ -1,42 +1,51 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, RefreshControl, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { assetsApi } from '../../utils/api';
+import { assetsAPI } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
+import { localDatabase } from '../../utils/localDatabase';
 import { colors, spacing, fontSize, radius, shadows } from '../../theme';
 import Badge from '../../components/ui/Badge';
 
 const conditionVariant = (c) => ({ 'good': 'success', 'fair': 'warning', 'poor': 'danger', 'under_maintenance': 'info' }[c] || 'muted');
 
 export default function AssetListScreen({ navigation }) {
+    const { isDemoMode } = useAuth();
     const [assets, setAssets] = useState([]);
     const [query, setQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
     const load = useCallback(async () => {
-        try { setAssets(await assetsApi.list().catch(() => [])); }
+        try {
+            const data = isDemoMode
+                ? await localDatabase.getAssets(query)
+                : await assetsAPI.getAssets().catch(() => []);
+            setAssets(data || []);
+        }
         catch (_) { } finally { setLoading(false); }
-    }, []);
+    }, [isDemoMode, query]);
 
     useEffect(() => { load(); }, [load]);
     const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
-    const filtered = assets.filter(a =>
-        `${a.name} ${a.assetId} ${a.category}`.toLowerCase().includes(query.toLowerCase())
+    // Search is handled in localDatabase for demo mode, or locally for API mode
+    const filtered = isDemoMode ? assets : assets.filter(a =>
+        `${a.name} ${a.assetId || a.id} ${a.category} ${a.building} ${a.assetTag || ''}`.toLowerCase().includes(query.toLowerCase())
     );
 
-    const renderItem = ({ item }) => (
+    const renderItem = useCallback(({ item }) => (
         <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('AssetDetail', { assetId: item.id })} activeOpacity={0.75}>
             <View style={styles.itemIcon}>
                 <Ionicons name="cube-outline" size={20} color={colors.primary} />
             </View>
             <View style={{ flex: 1 }}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemSub}>{item.assetId || item.id?.slice(0, 8)} · {item.location || 'No location'}</Text>
+                <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.itemSub}>{item.assetId || item.id?.slice(0, 8)} · {item.building || item.location || 'N/A'}</Text>
             </View>
             <Badge label={(item.condition || 'good').replace('_', ' ')} variant={conditionVariant(item.condition)} />
         </TouchableOpacity>
-    );
+    ), [navigation]);
 
     return (
         <View style={styles.screen}>
@@ -55,10 +64,20 @@ export default function AssetListScreen({ navigation }) {
 
             {loading
                 ? <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
-                : <FlatList data={filtered} keyExtractor={(_, i) => String(i)} renderItem={renderItem}
+                : <FlatList
+                    data={filtered}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderItem}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
                     contentContainerStyle={{ padding: spacing.lg, paddingBottom: 80, gap: 8 }}
                     ListEmptyComponent={<Text style={styles.empty}>No assets found</Text>}
+                    initialNumToRender={10}
+                    windowSize={5}
+                    maxToRenderPerBatch={5}
+                    removeClippedSubviews={true}
+                    getItemLayout={(data, index) => (
+                        { length: 76, offset: 76 * index, index }
+                    )}
                 />
             }
         </View>

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { procurementApi } from '../../utils/api';
+import { procurementAPI } from '../../utils/api';
+import apiClient from '../../utils/api';
 import { colors, spacing, fontSize } from '../../theme';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
@@ -15,8 +16,11 @@ export default function PurchaseRequestScreen({ navigation }) {
         if (!form.title || !form.department) { Alert.alert('Required', 'Title and department are required.'); return; }
         setLoading(true);
         try {
-            const pr = await procurementApi.create({ ...form, estimatedCost: parseFloat(form.estimatedCost) || 0, status: 'draft' });
-            await procurementApi.submit(pr.id);
+            const pr = await procurementAPI.create({
+                ...form,
+                estimatedCost: parseFloat(form.estimatedCost) || 0,
+                status: 'submitted' // API create often handles submission or we can call separate submit
+            });
             Alert.alert('Submitted!', 'Your purchase request has been submitted for approval.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
         } catch (e) { Alert.alert('Error', e.message); }
         finally { setLoading(false); }

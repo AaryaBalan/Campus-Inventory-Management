@@ -1,28 +1,61 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { notificationsApi } from '../../utils/api';
+import { notificationsAPI } from '../../utils/api';
+import apiClient from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
+import { localDatabase } from '../../utils/localDatabase';
+import { notificationEngine } from '../../utils/notificationEngine';
 import { colors, spacing, fontSize, radius, shadows } from '../../theme';
 
 export default function NotificationsScreen() {
+    const { isDemoMode } = useAuth();
     const [notifs, setNotifs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
     const load = useCallback(async () => {
-        try { setNotifs(await notificationsApi.list().catch(() => [])); }
+        try {
+            let data;
+            if (isDemoMode) {
+                const existing = await localDatabase.getNotifications();
+                // If it's a pull-to-refresh, simulate new notifications
+                if (refreshing) {
+                    data = await notificationEngine.simulate();
+                } else {
+                    data = existing.length > 0 ? existing : await notificationEngine.simulate();
+                }
+            } else {
+                data = await notificationsAPI.getNotifications().catch(() => []);
+            }
+            setNotifs(data || []);
+        }
         catch (_) { } finally { setLoading(false); }
-    }, []);
+    }, [isDemoMode, refreshing]);
 
     useEffect(() => { load(); }, [load]);
     const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
     const markRead = async (n) => {
-        try { await notificationsApi.markRead(n.id); load(); } catch (_) { }
+        try {
+            if (isDemoMode) {
+                await localDatabase.markNotifRead(n.id);
+            } else {
+                await notificationsAPI.markRead(n.id);
+            }
+            load();
+        } catch (_) { }
     };
 
     const markAll = async () => {
-        try { await notificationsApi.markAll(); load(); } catch (_) { }
+        try {
+            if (isDemoMode) {
+                await localDatabase.markAllNotifsRead();
+            } else {
+                await apiClient.post('/notifications/read-all');
+            }
+            load();
+        } catch (_) { }
     };
 
     return (

@@ -6,7 +6,7 @@ import { colors, spacing, fontSize, radius, shadows, roleColors } from '../../th
 import Button from '../../components/ui/Button';
 
 export default function ProfileScreen() {
-    const { logout, user, profile, userRole } = useAuth();
+    const { logout, user, profile, userRole, isDemoMode, toggleDemoMode, resetDemoData } = useAuth();
     const meta = roleColors[userRole] || roleColors.admin;
 
     const handleLogout = () => Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -54,14 +54,17 @@ export default function ProfileScreen() {
             {/* Actions */}
             <View style={styles.card}>
                 {[
+                    { icon: 'flask-outline', label: 'Demo Mode', color: isDemoMode ? colors.primary : colors.textMuted, value: isDemoMode ? 'ON' : 'OFF', onPress: toggleDemoMode },
                     { icon: 'lock-closed-outline', label: 'Change Password', color: colors.text, onPress: () => Alert.alert('Info', 'Password change is managed via the web portal.') },
                     { icon: 'help-circle-outline', label: 'Help & Support', color: colors.text, onPress: () => { } },
+                    { icon: 'refresh-circle-outline', label: 'Reset Demo Data', color: colors.warning, onPress: () => Alert.alert('Reset', 'This will regenerate all mock assets and inventory. Continue?', [{ text: 'Cancel' }, { text: 'Reset', onPress: resetDemoData }]) },
                     { icon: 'information-circle-outline', label: 'About CITIL v2.0', color: colors.textSecondary, onPress: () => Alert.alert('CITIL Mobile', 'Version 2.0\nCampus Inventory & Asset Traceability\n\n© 2025 CITIL') },
                 ].map((action, i) => (
                     <TouchableOpacity key={action.label} onPress={action.onPress}
                         style={[styles.action, i > 0 && styles.actionBorder]} activeOpacity={0.7}>
-                        <Ionicons name={action.icon} size={18} color={colors.textMuted} />
+                        <Ionicons name={action.icon} size={18} color={action.color} />
                         <Text style={[styles.actionLabel, { color: action.color }]}>{action.label}</Text>
+                        {action.value ? <Text style={{ color: action.color, fontWeight: '700', fontSize: 12, marginRight: 4 }}>{action.value}</Text> : null}
                         <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
                     </TouchableOpacity>
                 ))}

@@ -1,99 +1,123 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { analyticsApi, procurementApi } from '../../utils/api';
-import { colors, spacing, fontSize, radius, shadows, roleColors } from '../../theme';
+import { procurementAPI } from '../../utils/api';
+import { localDatabase } from '../../utils/localDatabase';
+import { colors, spacing, fontSize, radius, roleColors } from '../../theme';
 import StatCard from '../../components/ui/StatCard';
+import Badge from '../../components/ui/Badge';
 import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
 
 const meta = roleColors.finance;
 
 export default function FinanceDashboard() {
-    const { logout, userEmail, profile } = useAuth();
+    const { userEmail, profile, isDemoMode } = useAuth();
     const [stats, setStats] = useState(null);
     const [queue, setQueue] = useState([]);
     const [refreshing, setRefreshing] = useState(false);
 
     const load = useCallback(async () => {
         try {
-            const [dash, q] = await Promise.all([
-                analyticsApi.procurement().catch(() => null),
-                procurementApi.queue().catch(() => []),
-            ]);
-            setStats(dash); setQueue(Array.isArray(q) ? q.slice(0, 4) : []);
+            if (isDemoMode) {
+                const s = await localDatabase.getDashboardStats();
+                setStats({
+                    total: s.totalPRs,
+                    approved: s.approvedPRs,
+                    amount: s.totalSpend,
+                    pending: s.pendingPRs
+                });
+                setQueue([
+                    { id: '1', title: 'IT equipment for Research Lab', department: 'Computer Science', estimatedCost: 150000 },
+                    { id: '2', title: 'New Reference Books', department: 'Central Library', estimatedCost: 45000 },
+                    { id: '3', title: 'Office Supplies Q3', department: 'Administration', estimatedCost: 12000 }
+                ]);
+            } else {
+                const [allPRs, pending] = await Promise.all([
+                    procurementAPI.getRequests().catch(() => []),
+                    procurementAPI.getQueue().catch(() => []),
+                ]);
+
+                const total = allPRs.length;
+                const approved = allPRs.filter(p => p.status === 'approved').length;
+                const amount = allPRs.reduce((sum, p) => sum + (parseFloat(p.estimatedCost || p.totalAmount) || 0), 0);
+
+                setStats({ total, approved, amount, pending: pending.length });
+                setQueue(Array.isArray(pending) ? pending.slice(0, 3) : []);
+            }
         } catch (_) { }
-    }, []);
+    }, [isDemoMode]);
 
     useEffect(() => { load(); }, [load]);
     const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
-    const handleLogout = () => Alert.alert('Sign Out', 'Are you sure?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Sign Out', style: 'destructive', onPress: logout }]);
+
+    const name = profile?.name || userEmail?.split('@')[0] || 'Finance User';
 
     return (
         <ScrollView style={styles.screen} contentContainerStyle={styles.content}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
-            <View style={[styles.bgGlow, { backgroundColor: meta.glow }]} />
             <View style={styles.header}>
+                <View style={styles.avatar}>
+                    <Text style={styles.avatarTxt}>{(name || 'F')[0].toUpperCase()}</Text>
+                </View>
                 <View>
-                    <Text style={styles.greeting}>Finance Dashboard</Text>
-                    <Text style={styles.name}>{profile?.name || userEmail?.split('@')[0]}</Text>
-                </View>
-                <View style={[styles.rolePill, { backgroundColor: `${meta.color}18` }]}>
-                    <Text style={[styles.rolePillText, { color: meta.color }]}>FINANCE</Text>
+                    <Text style={styles.welcome}>Welcome back,</Text>
+                    <Text style={styles.name}>{name}</Text>
                 </View>
             </View>
 
-            <Text style={styles.section}>Procurement Overview</Text>
-            <View style={styles.statsRow}>
-                <StatCard label="Total PRs" value={stats?.totalPRs ?? '—'} icon="document-text-outline" color={meta.color} />
-                <StatCard label="Pending" value={queue.length} icon="time-outline" color={colors.warning} />
-            </View>
-            <View style={[styles.statsRow, { marginTop: spacing.sm }]}>
-                <StatCard label="Approved" value={stats?.approved ?? '—'} icon="checkmark-circle-outline" color={colors.success} />
-                <StatCard label="Rejected" value={stats?.rejected ?? '—'} icon="close-circle-outline" color={colors.danger} />
+            <View style={[styles.roleTag, { backgroundColor: meta.glow }]}>
+                <Ionicons name={meta.icon} size={14} color={meta.color} />
+                <Text style={[styles.roleTxt, { color: meta.color }]}>{meta.label}</Text>
             </View>
 
-            <Text style={styles.section}>Pending Approval Queue</Text>
-            <Card style={{ gap: 10 }}>
-                {queue.length === 0
-                    ? <Text style={styles.emptyText}>No PRs awaiting your approval</Text>
-                    : queue.map((pr, i) => (
-                        <View key={pr.id || i} style={styles.prRow}>
-                            <View style={[styles.prDot, { backgroundColor: meta.color }]} />
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.prTitle}>{pr.title || `PR #${pr.id?.slice(-6)}`}</Text>
-                                <Text style={styles.prSub}>{pr.department || 'Department'} · ₹{pr.totalAmount || '—'}</Text>
-                            </View>
-                            <View style={[styles.statusBadge, { backgroundColor: 'rgba(245,158,11,0.15)' }]}>
-                                <Text style={[styles.statusText, { color: colors.warning }]}>PENDING</Text>
-                            </View>
-                        </View>
-                    ))
-                }
-            </Card>
+            <View style={styles.statsGrid}>
+                <StatCard label="Pending Approval" value={stats?.pending ?? '—'} icon="time-outline" color={colors.warning} />
+                <StatCard label="Total PRs" value={stats?.total ?? '—'} icon="document-text-outline" color={colors.primary} />
+            </View>
+            <View style={[styles.statsGrid, { marginTop: spacing.sm }]}>
+                <StatCard label="Total Spend" value={stats?.amount ? `₹${(stats.amount / 1000).toFixed(1)}k` : '—'} icon="cash-outline" color={colors.success} />
+                <StatCard label="Approved" value={stats?.approved ?? '—'} icon="checkmark-circle-outline" color={colors.info} />
+            </View>
 
-            <Button title="Sign Out" variant="danger" onPress={handleLogout} leftIcon="log-out-outline" style={{ marginTop: spacing.lg }} />
+            <Text style={styles.sectionTitle}>Awaiting Action</Text>
+            {queue.length > 0 ? (
+                <View style={{ gap: spacing.sm }}>
+                    {queue.map((item, i) => (
+                        <Card key={item.id || i} style={styles.queueCard}>
+                            <View style={styles.queueTop}>
+                                <Text style={styles.queueTitle} numberOfLines={1}>{item.title || 'Purchase Request'}</Text>
+                                <Badge label="PENDING" variant="warning" />
+                            </View>
+                            <Text style={styles.queueMeta}>{item.department} · ₹{item.estimatedCost || item.totalAmount || '—'}</Text>
+                        </Card>
+                    ))}
+                </View>
+            ) : (
+                <Card style={styles.emptyCard}>
+                    <Text style={styles.emptyTxt}>No pending approvals</Text>
+                </Card>
+            )}
         </ScrollView>
     );
 }
 
 const styles = StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
-    content: { paddingHorizontal: spacing.lg, paddingTop: 58, paddingBottom: spacing.xxxl },
-    bgGlow: { position: 'absolute', top: -60, right: -60, width: 200, height: 200, borderRadius: 100, opacity: 0.5 },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg },
-    greeting: { fontSize: fontSize.sm, color: colors.textSecondary },
-    name: { fontSize: fontSize.xxl, fontWeight: '800', color: colors.text, marginTop: 2 },
-    rolePill: { borderRadius: radius.full, paddingHorizontal: 12, paddingVertical: 5, alignSelf: 'flex-start' },
-    rolePillText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-    section: { fontSize: fontSize.xs, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing.sm, marginTop: spacing.lg },
-    statsRow: { flexDirection: 'row', gap: spacing.sm },
-    emptyText: { fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center', paddingVertical: 12 },
-    prRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    prDot: { width: 8, height: 8, borderRadius: 4 },
-    prTitle: { fontSize: fontSize.sm, fontWeight: '600', color: colors.text },
-    prSub: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
-    statusBadge: { borderRadius: radius.full, paddingHorizontal: 8, paddingVertical: 3 },
-    statusText: { fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
+    content: { paddingHorizontal: spacing.lg, paddingTop: 60, paddingBottom: 40 },
+    header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: spacing.md },
+    avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surfaceElevated, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.cardBorder },
+    avatarTxt: { color: colors.primary, fontWeight: '800', fontSize: fontSize.lg },
+    welcome: { fontSize: fontSize.sm, color: colors.textSecondary },
+    name: { fontSize: fontSize.xl, fontWeight: '800', color: colors.text },
+    roleTag: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full, marginBottom: spacing.xl },
+    roleTxt: { fontSize: fontSize.xs, fontWeight: '700', letterSpacing: 0.5 },
+    statsGrid: { flexDirection: 'row', gap: spacing.sm },
+    sectionTitle: { fontSize: fontSize.xs, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.md, marginTop: spacing.xl },
+    queueCard: { padding: 12 },
+    queueTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+    queueTitle: { fontSize: fontSize.base, fontWeight: '600', color: colors.text, flex: 1, marginRight: 8 },
+    queueMeta: { fontSize: fontSize.xs, color: colors.textSecondary },
+    emptyCard: { padding: 20, alignItems: 'center' },
+    emptyTxt: { color: colors.textMuted, fontSize: fontSize.sm },
 });

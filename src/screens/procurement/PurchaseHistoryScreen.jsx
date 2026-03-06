@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
-import { procurementApi } from '../../utils/api';
+import { procurementAPI } from '../../utils/api';
 import { colors, spacing, fontSize, radius, shadows } from '../../theme';
 import Badge from '../../components/ui/Badge';
 
@@ -12,7 +12,7 @@ export default function PurchaseHistoryScreen({ navigation }) {
     const [refreshing, setRefreshing] = useState(false);
 
     const load = useCallback(async () => {
-        try { setPrs(await procurementApi.list().catch(() => [])); }
+        try { setPrs(await procurementAPI.getRequests().catch(() => [])); }
         catch (_) { } finally { setLoading(false); }
     }, []);
 

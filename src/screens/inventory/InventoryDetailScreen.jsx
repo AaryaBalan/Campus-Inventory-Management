@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { inventoryApi } from '../../utils/api';
+import { inventoryAPI } from '../../utils/api';
+import apiClient from '../../utils/api';
 import { colors, spacing, fontSize } from '../../theme';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
@@ -13,7 +14,7 @@ export default function InventoryDetailScreen({ route, navigation }) {
 
     useEffect(() => {
         (async () => {
-            try { setItem(await inventoryApi.get(itemId)); }
+            try { setItem(await apiClient.get(`/inventory/${itemId}`)); }
             catch (_) { } finally { setLoading(false); }
         })();
     }, [itemId]);

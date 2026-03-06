@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { procurementApi } from '../../utils/api';
+import { procurementAPI } from '../../utils/api';
+import apiClient from '../../utils/api';
 import { colors, spacing, fontSize, radius, shadows } from '../../theme';
 import Badge from '../../components/ui/Badge';
 
@@ -11,7 +12,7 @@ export default function ApprovalQueueScreen() {
     const [refreshing, setRefreshing] = useState(false);
 
     const load = useCallback(async () => {
-        try { setQueue(await procurementApi.queue().catch(() => [])); }
+        try { setQueue(await procurementAPI.getQueue().catch(() => [])); }
         catch (_) { } finally { setLoading(false); }
     }, []);
 
@@ -23,7 +24,10 @@ export default function ApprovalQueueScreen() {
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Approve', onPress: async () => {
-                    try { await procurementApi.approve(pr.id, { comments: 'Approved via mobile' }); load(); }
+                    try {
+                        await apiClient.post(`/purchase-requests/${pr.id}/approve`, { comments: 'Approved via mobile' });
+                        load();
+                    }
                     catch (e) { Alert.alert('Error', e.message); }
                 }
             },
@@ -32,7 +36,10 @@ export default function ApprovalQueueScreen() {
     const handleReject = async (pr) => {
         Alert.prompt('Reject Reason', 'Enter rejection reason:', async (reason) => {
             if (!reason) return;
-            try { await procurementApi.reject(pr.id, { reason }); load(); }
+            try {
+                await apiClient.post(`/purchase-requests/${pr.id}/reject`, { reason });
+                load();
+            }
             catch (e) { Alert.alert('Error', e.message); }
         });
     };

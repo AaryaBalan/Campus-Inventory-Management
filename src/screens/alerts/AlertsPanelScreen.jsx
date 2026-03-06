@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { alertsApi } from '../../utils/api';
+import { alertsAPI } from '../../utils/api';
+import apiClient from '../../utils/api';
 import { colors, spacing, fontSize, radius, shadows } from '../../theme';
 
 const severityColor = (s) => ({ high: colors.danger, medium: colors.warning, low: colors.info }[s] || colors.textMuted);
@@ -12,7 +13,7 @@ export default function AlertsPanelScreen() {
     const [refreshing, setRefreshing] = useState(false);
 
     const load = useCallback(async () => {
-        try { setAlerts(await alertsApi.list().catch(() => [])); }
+        try { setAlerts(await alertsAPI.list().catch(() => [])); }
         catch (_) { } finally { setLoading(false); }
     }, []);
 
@@ -21,7 +22,14 @@ export default function AlertsPanelScreen() {
 
     const handleAck = (alert) => Alert.alert('Acknowledge', `Acknowledge "${alert.title}"?`, [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Acknowledge', onPress: async () => { try { await alertsApi.acknowledge(alert.id); load(); } catch (_) { } } },
+        {
+            text: 'Acknowledge', onPress: async () => {
+                try {
+                    await apiClient.post(`/alerts/${alert.id}/acknowledge`);
+                    load();
+                } catch (_) { }
+            }
+        },
     ]);
 
     return (

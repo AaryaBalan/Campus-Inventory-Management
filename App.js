@@ -14,6 +14,19 @@ LogBox.ignoreLogs([
   'shadow* style props are deprecated',
 ]);
 
+// Suppress non-critical React Native Web warnings for cleaner demo
+if (typeof window !== 'undefined') {
+  const originalWarn = console.warn;
+  console.warn = (...args) => {
+    if (args[0] && typeof args[0] === 'string' && (
+      args[0].includes('pointerEvents is deprecated') ||
+      args[0].includes('Unknown event handler property') ||
+      args[0].includes('TouchableMixin is deprecated')
+    )) return;
+    originalWarn(...args);
+  };
+}
+
 export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>

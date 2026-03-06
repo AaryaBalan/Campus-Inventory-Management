@@ -29,6 +29,7 @@ import QRScannerScreen from '../screens/scanner/QRScannerScreen';
 import BillExtractorScreen from '../screens/bills/BillExtractorScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
+import CampusMapScreen from '../screens/campus/CampusMapScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -84,6 +85,7 @@ function MoreStack() {
             <Stack.Screen name="BillExtractor" component={BillExtractorScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="CampusMap" component={CampusMapScreen} />
         </Stack.Navigator>
     );
 }
@@ -94,6 +96,7 @@ function MoreMenuScreen({ navigation }) {
         { label: 'Alerts', icon: 'alert-circle-outline', screen: 'Alerts', color: colors.warning },
         { label: 'Notifications', icon: 'notifications-outline', screen: 'Notifications', color: colors.primary },
         { label: 'QR Scanner', icon: 'qr-code-outline', screen: 'QRScanner', color: colors.success },
+        { label: 'Campus Map', icon: 'map-outline', screen: 'CampusMap', color: colors.primary },
         { label: 'Bill Extractor', icon: 'receipt-outline', screen: 'BillExtractor', color: colors.secondary },
         { label: 'Profile', icon: 'person-circle-outline', screen: 'Profile', color: colors.info },
     ];

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { inventoryApi } from '../../utils/api';
+import { inventoryAPI } from '../../utils/api';
 import { colors, spacing, fontSize, radius, shadows } from '../../theme';
 import Badge from '../../components/ui/Badge';
 
@@ -14,7 +14,7 @@ export default function StockLevelsScreen({ navigation }) {
     const [refreshing, setRefreshing] = useState(false);
 
     const load = useCallback(async () => {
-        try { setItems(await inventoryApi.list().catch(() => [])); }
+        try { setItems(await inventoryAPI.getInventory().catch(() => [])); }
         catch (_) { } finally { setLoading(false); }
     }, []);
 

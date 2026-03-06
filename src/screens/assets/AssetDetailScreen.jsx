@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { assetsApi } from '../../utils/api';
+import { assetsAPI } from '../../utils/api';
+import apiClient from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
+import { localDatabase } from '../../utils/localDatabase';
 import { colors, spacing, fontSize, radius, shadows } from '../../theme';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
@@ -10,6 +13,7 @@ const conditionVariant = (c) => ({ good: 'success', fair: 'warning', poor: 'dang
 
 export default function AssetDetailScreen({ route, navigation }) {
     const { assetId } = route.params || {};
+    const { isDemoMode } = useAuth();
     const [asset, setAsset] = useState(null);
     const [movements, setMovements] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -17,11 +21,21 @@ export default function AssetDetailScreen({ route, navigation }) {
     useEffect(() => {
         (async () => {
             try {
-                const [a, m] = await Promise.all([assetsApi.get(assetId), assetsApi.movements(assetId).catch(() => [])]);
-                setAsset(a); setMovements(Array.isArray(m) ? m.slice(0, 5) : []);
+                if (isDemoMode) {
+                    const a = await localDatabase.getAssetById(assetId);
+                    setAsset(a);
+                    setMovements([]); // Mock movements not yet in DB
+                } else {
+                    const [a, m] = await Promise.all([
+                        assetsAPI.getAssetById(assetId),
+                        apiClient.get(`/assets/${assetId}/movements`).catch(() => [])
+                    ]);
+                    setAsset(a);
+                    setMovements(Array.isArray(m) ? m.slice(0, 5) : []);
+                }
             } catch (_) { } finally { setLoading(false); }
         })();
-    }, [assetId]);
+    }, [assetId, isDemoMode]);
 
     if (loading) return <View style={styles.center}><ActivityIndicator color={colors.primary} size="large" /></View>;
     if (!asset) return <View style={styles.center}><Text style={styles.err}>Asset not found</Text></View>;
@@ -31,8 +45,8 @@ export default function AssetDetailScreen({ route, navigation }) {
         { label: 'Category', value: asset.category },
         { label: 'Location', value: asset.location },
         { label: 'Department', value: asset.department },
-        { label: 'Purchase Value', value: asset.purchaseValue ? `₹${asset.purchaseValue}` : '—' },
-        { label: 'Acquired', value: asset.purchaseDate ? new Date(asset.purchaseDate._seconds * 1000).toLocaleDateString() : '—' },
+        { label: 'Purchase Value', value: (asset.purchaseValue || asset.value) ? `₹${asset.purchaseValue || asset.value}` : '—' },
+        { label: 'Acquired', value: asset.purchaseDate ? (typeof asset.purchaseDate === 'string' ? new Date(asset.purchaseDate).toLocaleDateString() : new Date(asset.purchaseDate._seconds * 1000).toLocaleDateString()) : '—' },
     ];
 
     return (
