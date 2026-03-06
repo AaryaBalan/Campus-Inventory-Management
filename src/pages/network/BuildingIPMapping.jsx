@@ -59,7 +59,7 @@ export default function BuildingIPMapping() {
     const ThCell = ({ col, label }) => (
         <th
             onClick={() => handleSort(col)}
-            className="px-5 py-3 text-left text-zinc-500 text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:text-zinc-200 select-none whitespace-nowrap group"
+            className="px-5 py-3.5 text-left text-zinc-500 text-[11px] font-bold uppercase tracking-widest cursor-pointer hover:text-zinc-200 select-none whitespace-nowrap group"
         >
             <span className="flex items-center">
                 {label}
@@ -167,21 +167,21 @@ export default function BuildingIPMapping() {
                                             onClick={() => setExpandedRow(isExpanded ? null : b.id)}
                                             className={`group cursor-pointer transition-all duration-200 ${isExpanded ? 'bg-blue-500/[0.04]' : 'hover:bg-zinc-800/40'}`}
                                         >
-                                            <td className="px-6 py-4 text-zinc-600 font-mono text-[11px]">{String(b.id).padStart(2, '0')}</td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-6 py-4.5 text-zinc-600 font-mono text-xs">{String(b.id).padStart(2, '0')}</td>
+                                            <td className="px-6 py-4.5">
                                                 <div className="flex items-center gap-3">
                                                     <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/20" style={{ backgroundColor: buildingColorMap[b.building_id] || '#71717a' }} />
-                                                    <span className="text-zinc-200 font-bold text-xs tracking-tight">{b.building_name}</span>
+                                                    <span className="text-zinc-200 font-bold text-sm tracking-tight">{b.building_name}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <span className="px-1.5 py-0.5 rounded-md bg-zinc-800/80 border border-zinc-700/50 text-zinc-400 font-bold font-mono text-[10px] tracking-widest">{b.vlan}</span>
+                                            <td className="px-6 py-4.5">
+                                                <span className="px-2 py-0.5 rounded-md bg-zinc-800/80 border border-zinc-700/50 text-zinc-400 font-bold font-mono text-xs tracking-widest">{b.vlan}</span>
                                             </td>
-                                            <td className="px-6 py-4"><IPCell value={b.ip_range_start} /></td>
-                                            <td className="px-6 py-4"><IPCell value={b.ip_range_end} /></td>
-                                            <td className="px-6 py-4 text-zinc-500 font-mono text-[11px] font-medium">{b.gateway}</td>
-                                            <td className="px-6 py-4">
-                                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.1em]">
+                                            <td className="px-6 py-4.5"><IPCell value={b.ip_range_start} /></td>
+                                            <td className="px-6 py-4.5"><IPCell value={b.ip_range_end} /></td>
+                                            <td className="px-6 py-4.5 text-zinc-500 font-mono text-xs font-medium">{b.gateway}</td>
+                                            <td className="px-6 py-4.5">
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/5 border border-emerald-500/20 text-emerald-400 text-[11px] font-black uppercase tracking-[0.1em] whitespace-nowrap">
                                                     <span className="w-1 h-1 rounded-full bg-emerald-400 rotate-animation transition-transform" />
                                                     {b.status}
                                                 </span>

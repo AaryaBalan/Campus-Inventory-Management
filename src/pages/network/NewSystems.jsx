@@ -54,7 +54,7 @@ function StatusBadge({ status }) {
         warning: { color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/25', dot: 'bg-amber-400 animate-pulse', label: 'Warning' },
     }[status] || {};
     return (
-        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${cfg.bg} ${cfg.color}`}>
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border uppercase tracking-widest ${cfg.bg} ${cfg.color} whitespace-nowrap shrink-0 transition-all`}>
             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
             {cfg.label}
         </span>
@@ -63,7 +63,7 @@ function StatusBadge({ status }) {
 
 function MonoCell({ value, color = 'text-cyan-300', bg = 'bg-cyan-500/10 border-cyan-500/20' }) {
     return (
-        <span className={`inline-flex items-center font-mono text-xs ${color} ${bg} border px-2 py-0.5 rounded-md`}>
+        <span className={`inline-flex items-center font-mono text-xs ${color} ${bg} border px-2.5 py-1 rounded-lg leading-none whitespace-nowrap`}>
             {value}<CopyBtn text={value} />
         </span>
     );
@@ -111,7 +111,7 @@ export default function NewSystems() {
 
     const Th = ({ col, label }) => (
         <th onClick={() => handleSort(col)}
-            className="px-4 py-3 text-left text-zinc-400 text-[11px] font-semibold uppercase tracking-wider cursor-pointer hover:text-zinc-200 select-none whitespace-nowrap">
+            className="px-5 py-4 text-left text-zinc-400 text-xs font-bold uppercase tracking-widest cursor-pointer hover:text-zinc-200 select-none whitespace-nowrap border-b border-zinc-800/80">
             <span className="flex items-center">{label}<SortIcon active={sortBy === col} dir={sortDir} /></span>
         </th>
     );
@@ -241,50 +241,51 @@ export default function NewSystems() {
                                             className={`cursor-pointer transition-colors ${isOpen ? 'bg-zinc-800/40' : 'hover:bg-zinc-800/25'}`}
                                         >
                                             {/* System ID */}
-                                            <td className="px-4 py-3">
-                                                <span className="text-zinc-400 text-xs font-mono">{s.id}</span>
+                                            <td className="px-5 py-4.5">
+                                                <span className="text-zinc-500 text-xs font-mono font-bold whitespace-nowrap">{s.id}</span>
                                             </td>
                                             {/* Hostname */}
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 bg-zinc-800 border border-zinc-700/50 rounded-md flex items-center justify-center shrink-0">
-                                                        <Monitor size={11} className="text-zinc-400" />
+                                            <td className="px-5 py-4.5">
+                                                <div className="flex items-center gap-3 whitespace-nowrap">
+                                                    <div className="w-7 h-7 bg-zinc-800/80 border border-zinc-700/50 rounded-lg flex items-center justify-center shrink-0">
+                                                        <Monitor size={13} className="text-zinc-300" />
                                                     </div>
-                                                    <span className="text-zinc-100 text-sm font-medium">{s.hostname}</span>
+                                                    <span className="text-zinc-100 text-sm font-bold tracking-tight">{s.hostname}</span>
                                                 </div>
                                             </td>
                                             {/* IP */}
-                                            <td className="px-4 py-3">
+                                            <td className="px-5 py-4.5">
                                                 <MonoCell value={s.ip} />
                                             </td>
                                             {/* MAC */}
-                                            <td className="px-4 py-3">
+                                            <td className="px-5 py-4.5">
                                                 <MonoCell value={s.mac} color="text-zinc-300" bg="bg-zinc-800/60 border-zinc-700/50" />
                                             </td>
                                             {/* Location */}
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: bColor }} />
-                                                    <span className="text-zinc-300 text-xs">{s.building}</span>
+                                            <td className="px-5 py-4.5">
+                                                <div className="flex items-center gap-2.5 whitespace-nowrap">
+                                                    <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/10" style={{ background: bColor }} />
+                                                    <span className="text-zinc-300 text-sm font-bold tracking-tight">{s.building}</span>
                                                 </div>
                                             </td>
                                             {/* CPU */}
-                                            <td className="px-4 py-3">
-                                                <span className="text-zinc-400 text-xs truncate max-w-[140px] block">{s.cpu}</span>
+                                            <td className="px-5 py-4.5">
+                                                <span className="text-zinc-400 text-xs font-medium truncate max-w-[160px] block whitespace-nowrap">{s.cpu}</span>
                                             </td>
                                             {/* RAM */}
-                                            <td className="px-4 py-3">
-                                                <span className="text-zinc-300 text-xs font-mono bg-zinc-800/50 border border-zinc-700/40 px-2 py-0.5 rounded">{s.ram}</span>
+                                            <td className="px-5 py-4.5">
+                                                <span className="text-zinc-300 text-xs font-bold font-mono bg-zinc-800/60 border border-zinc-700/40 px-3 py-1 rounded-lg whitespace-nowrap">{s.ram}</span>
                                             </td>
                                             {/* Status */}
-                                            <td className="px-4 py-3">
+                                            <td className="px-5 py-4.5">
                                                 <StatusBadge status={s.status} />
                                             </td>
                                             {/* Last Seen */}
-                                            <td className="px-4 py-3">
-                                                <span className="text-zinc-500 text-xs">{s.last_seen.split(' ')[1]}</span>
-                                                <br />
-                                                <span className="text-zinc-600 text-[10px]">{s.last_seen.split(' ')[0]}</span>
+                                            <td className="px-5 py-4.5">
+                                                <div className="flex flex-col gap-0 leading-tight whitespace-nowrap">
+                                                    <span className="text-zinc-400 text-xs font-bold font-mono">{s.last_seen.split(' ')[1]}</span>
+                                                    <span className="text-zinc-600 text-[10px] font-bold uppercase tracking-tighter opacity-70">{s.last_seen.split(' ')[0]}</span>
+                                                </div>
                                             </td>
                                         </tr>
 
