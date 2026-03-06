@@ -38,8 +38,16 @@ except ImportError:
     print("[ERROR] 'psutil' library not found. Run: pip install psutil")
     sys.exit(1)
 
+# ── Path resolution ───────────────────────────────────────────────────────────
+if getattr(sys, 'frozen', False):
+    # If running as an EXE (frozen), look next to the EXE
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    # If running as a script, look next to agent.py
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # ── Logging setup ─────────────────────────────────────────────────────────────
-LOG_FILE = os.path.join(os.path.dirname(__file__), "agent.log")
+LOG_FILE = os.path.join(BASE_DIR, "agent.log")
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -51,10 +59,10 @@ logging.basicConfig(
 log = logging.getLogger("citil-agent")
 
 # ── Load configuration ────────────────────────────────────────────────────────
-CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
+CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 
 def load_config():
-    """Load config.json from the same directory as agent.py."""
+    """Load config.json from the same directory as the program."""
     if not os.path.exists(CONFIG_FILE):
         log.error(f"config.json not found at {CONFIG_FILE}")
         sys.exit(1)
@@ -112,6 +120,17 @@ def get_ram_gb():
     except Exception:
         return "Unknown"
 
+def get_uptime():
+    """Get system uptime string."""
+    try:
+        boot_time = psutil.boot_time()
+        uptime_seconds = time.time() - boot_time
+        days = int(uptime_seconds // (24 * 3600))
+        hours = int((uptime_seconds % (24 * 3600)) // 3600)
+        return f"{days}d {hours}h"
+    except Exception:
+        return "Unknown"
+
 def collect_system_info():
     """Gather all system info into a dict ready for the API."""
     return {
@@ -123,6 +142,7 @@ def collect_system_info():
         "os":          f"{platform.system()} {platform.release()}",
         "os_version":  platform.version(),
         "platform":    platform.machine(),
+        "uptime":      get_uptime(),
         "timestamp":   datetime.now().isoformat(),
         "agent_version": "1.0.0",
     }

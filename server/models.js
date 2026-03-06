@@ -5,41 +5,42 @@ let systemsTable = [];
 
 // Helper: Calculate Building from IP (Matches Phase 1 logic)
 const lookupBuilding = (ip) => {
-    // In a real DB, this would be a SQL query: 
-    // SELECT name FROM buildings WHERE '192.168.10.45' BETWEEN start AND end
     const segments = ip.split('.');
-    if (segments[0] !== '192' || segments[1] !== '168') return 'Unknown';
+    if (segments[0] !== '192' || segments[1] !== '168') {
+        return { name: 'External / VPN', code: 'EVN' };
+    }
 
     const mapping = {
-        '10': 'Admin Block',
-        '20': 'Library',
-        '30': 'Lecture Hall A',
-        '40': 'Science Lab',
-        '50': 'Server Room',
-        '60': 'Conference Room',
-        '70': 'Staff Room',
-        '80': 'Seminar Hall'
+        '10': { name: 'Admin Block', code: 'ADM' },
+        '20': { name: 'Library', code: 'LIB' },
+        '30': { name: 'Lecture Hall A', code: 'LHA' },
+        '40': { name: 'Science Lab', code: 'SCI' },
+        '50': { name: 'Server Room', code: 'SRV' },
+        '60': { name: 'Conference Room', code: 'CNF' },
+        '70': { name: 'Staff Room', code: 'STF' },
+        '80': { name: 'Seminar Hall', code: 'SEM' }
     };
 
-    return mapping[segments[2]] || 'External / VPN';
+    return mapping[segments[2]] || { name: 'External / VPN', code: 'EVN' };
 };
 
 const registerSystem = async (data) => {
     const existingIndex = systemsTable.findIndex(s => s.mac === data.mac);
-    const location = lookupBuilding(data.ip);
+    const { name: building, code: building_code } = lookupBuilding(data.ip);
 
     if (existingIndex !== -1) {
         // Update existing record
         systemsTable[existingIndex] = {
             ...systemsTable[existingIndex],
             ...data,
-            location,
+            building,
+            building_code,
             last_seen: new Date().toISOString()
         };
         return {
             asset_id: systemsTable[existingIndex].asset_id,
             status: 'updated',
-            location
+            location: building
         };
     } else {
         // Create new Asset ID (CLG-XXX)
@@ -47,12 +48,13 @@ const registerSystem = async (data) => {
         const newSystem = {
             ...data,
             asset_id: id,
-            location,
+            building,
+            building_code,
             registered_at: new Date().toISOString(),
             last_seen: new Date().toISOString()
         };
         systemsTable.push(newSystem);
-        return { asset_id: id, status: 'created', location };
+        return { asset_id: id, status: 'created', location: building };
     }
 };
 
