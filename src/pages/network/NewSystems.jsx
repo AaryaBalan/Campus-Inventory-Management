@@ -4,7 +4,7 @@ import {
     ChevronDown, ChevronUp, Search, Filter, RefreshCw,
     Cpu, HardDrive, Globe, Calendar, Clock, MapPin, Hash
 } from 'lucide-react';
-import { registeredSystems, buildingIPMappings } from '../../data/mockData.js';
+import { buildingIPMappings } from '../../data/mockData.js';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 function useLiveClock() {
@@ -81,22 +81,47 @@ export default function NewSystems() {
     const now = useLiveClock();
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
-    const [sortBy, setSortBy] = useState('id');
+    const [sortBy, setSortBy] = useState('asset_id'); // changed default sort to asset_id
     const [sortDir, setSortDir] = useState('asc');
     const [expanded, setExpanded] = useState(null);
     const [refreshAnim, setRefreshAnim] = useState(false);
+    
+    const [systems, setSystems] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    const fetchSystems = async () => {
+        try {
+            const resp = await fetch('/api/systems');
+            if (!resp.ok) throw new Error('Network response was not ok');
+            const data = await resp.json();
+            setSystems(data);
+            setLoading(false);
+        } catch (err) {
+            console.error('Fetch error:', err);
+            setError(err.message);
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSystems();
+        // Refresh every 10 seconds for live feel
+        const timer = setInterval(fetchSystems, 10000);
+        return () => clearInterval(timer);
+    }, []);
 
     const handleSort = col => {
         if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
         else { setSortBy(col); setSortDir('asc'); }
     };
 
-    const filtered = registeredSystems
+    const filtered = systems
         .filter(s => statusFilter === 'All' || s.status === statusFilter.toLowerCase())
         .filter(s => {
             const q = search.toLowerCase();
             return !q || s.hostname.toLowerCase().includes(q) || s.ip.includes(q) ||
-                s.mac.toLowerCase().includes(q) || s.building.toLowerCase().includes(q) ||
+                s.mac.toLowerCase().includes(q) || (s.building && s.building.toLowerCase().includes(q)) ||
                 s.asset_id.toLowerCase().includes(q);
         })
         .sort((a, b) => {
@@ -105,9 +130,9 @@ export default function NewSystems() {
             return sortDir === 'asc' ? cmp : -cmp;
         });
 
-    const online = registeredSystems.filter(s => s.status === 'online').length;
-    const offline = registeredSystems.filter(s => s.status === 'offline').length;
-    const warning = registeredSystems.filter(s => s.status === 'warning').length;
+    const online = systems.filter(s => s.status === 'online').length;
+    const offline = systems.filter(s => s.status === 'offline').length;
+    const warning = systems.filter(s => s.status === 'warning').length;
 
     const Th = ({ col, label }) => (
         <th onClick={() => handleSort(col)}
@@ -149,7 +174,7 @@ export default function NewSystems() {
             {/* ── KPI Row ── */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                    { label: 'Total Endpoints', value: registeredSystems.length, icon: <Monitor size={18} />, color: 'border-zinc-700/60', ib: 'bg-zinc-800/60', ic: 'text-zinc-300' },
+                    { label: 'Total Endpoints', value: systems.length, icon: <Monitor size={18} />, color: 'border-zinc-700/60', ib: 'bg-zinc-800/60', ic: 'text-zinc-300' },
                     { label: 'Online', value: online, icon: <Wifi size={18} />, color: 'border-emerald-500/20', ib: 'bg-emerald-500/10', ic: 'text-emerald-400' },
                     { label: 'Offline', value: offline, icon: <WifiOff size={18} />, color: 'border-zinc-700/60', ib: 'bg-zinc-800/60', ic: 'text-zinc-400' },
                     { label: 'Warning', value: warning, icon: <AlertTriangle size={18} />, color: 'border-amber-500/20', ib: 'bg-amber-500/10', ic: 'text-amber-400' },
@@ -209,7 +234,7 @@ export default function NewSystems() {
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <span className="text-zinc-500 text-xs">{filtered.length} of {registeredSystems.length}</span>
+                        <span className="text-zinc-500 text-xs">{filtered.length} of {systems.length}</span>
                     </div>
                 </div>
 
@@ -229,20 +254,24 @@ export default function NewSystems() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-800/50">
-                            {filtered.length === 0 ? (
+                            {loading ? (
+                                <tr><td colSpan={9} className="px-4 py-10 text-center text-zinc-600 text-sm">Loading systems...</td></tr>
+                            ) : error ? (
+                                <tr><td colSpan={9} className="px-4 py-10 text-center text-red-400 text-sm">Error: {error}</td></tr>
+                            ) : filtered.length === 0 ? (
                                 <tr><td colSpan={9} className="px-4 py-10 text-center text-zinc-600 text-sm">No systems match your filter.</td></tr>
                             ) : filtered.map(s => {
                                 const bColor = BUILDING_COLORS[s.building_code] || '#52525b';
-                                const isOpen = expanded === s.id;
+                                const isOpen = expanded === s.asset_id;
                                 return (
-                                    <React.Fragment key={s.id}>
+                                    <React.Fragment key={s.asset_id}>
                                         <tr
-                                            onClick={() => setExpanded(isOpen ? null : s.id)}
+                                            onClick={() => setExpanded(isOpen ? null : s.asset_id)}
                                             className={`cursor-pointer transition-colors ${isOpen ? 'bg-zinc-800/40' : 'hover:bg-zinc-800/25'}`}
                                         >
                                             {/* System ID */}
                                             <td className="px-5 py-4.5">
-                                                <span className="text-zinc-500 text-xs font-mono font-bold whitespace-nowrap">{s.id}</span>
+                                                <span className="text-zinc-500 text-xs font-mono font-bold whitespace-nowrap">{s.asset_id}</span>
                                             </td>
                                             {/* Hostname */}
                                             <td className="px-5 py-4.5">
@@ -283,8 +312,12 @@ export default function NewSystems() {
                                             {/* Last Seen */}
                                             <td className="px-5 py-4.5">
                                                 <div className="flex flex-col gap-0 leading-tight whitespace-nowrap">
-                                                    <span className="text-zinc-400 text-xs font-bold font-mono">{s.last_seen.split(' ')[1]}</span>
-                                                    <span className="text-zinc-600 text-[10px] font-bold uppercase tracking-tighter opacity-70">{s.last_seen.split(' ')[0]}</span>
+                                                    <span className="text-zinc-400 text-xs font-bold font-mono">
+                                                        {s.last_seen ? new Date(s.last_seen).toLocaleTimeString() : 'N/A'}
+                                                    </span>
+                                                    <span className="text-zinc-600 text-[10px] font-bold uppercase tracking-tighter opacity-70">
+                                                        {s.last_seen ? new Date(s.last_seen).toLocaleDateString() : 'N/A'}
+                                                    </span>
                                                 </div>
                                             </td>
                                         </tr>
@@ -304,8 +337,8 @@ export default function NewSystems() {
                                                             { icon: <Monitor size={11} />, label: 'OS', value: s.os },
                                                             { icon: <MapPin size={11} />, label: 'Location', value: s.building },
                                                             { icon: <Clock size={11} />, label: 'Uptime', value: s.uptime },
-                                                            { icon: <Calendar size={11} />, label: 'First Registered', value: s.registered_at },
-                                                            { icon: <Clock size={11} />, label: 'Last Seen', value: s.last_seen },
+                                                            {icon: <Calendar size={11} />, label: 'First Registered', value: s.registered_at ? new Date(s.registered_at).toLocaleString() : 'N/A' },
+                                                            {icon: <Clock size={11} />, label: 'Last Seen', value: s.last_seen ? new Date(s.last_seen).toLocaleString() : 'N/A' },
                                                             { icon: <Hash size={11} />, label: 'Building Code', value: s.building_code },
                                                         ].map(d => (
                                                             <div key={d.label} className="flex flex-col gap-1">
