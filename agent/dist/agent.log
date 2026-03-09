@@ -1,0 +1,19 @@
+2026-03-06 13:30:57,995 [INFO] ============================================================
+2026-03-06 13:30:57,996 [INFO]   CITIL Endpoint Agent starting…
+2026-03-06 13:30:57,996 [INFO] ============================================================
+2026-03-06 13:30:57,997 [INFO] Config loaded. Server: http://localhost:5000
+2026-03-06 13:30:57,997 [INFO] System info: {
+  "hostname": "Akshayas-Book",
+  "ip": "10.10.235.73",
+  "mac": "9F:01:15:2C:B0:51",
+  "cpu": "13th Gen Intel(R) Core(TM) i5-1334U",
+  "ram": "16 GB",
+  "os": "Windows 11",
+  "os_version": "10.0.26200",
+  "platform": "AMD64",
+  "uptime": "1d 5h",
+  "timestamp": "2026-03-06T13:30:57.997936",
+  "agent_version": "1.0.0"
+}
+2026-03-06 13:30:58,019 [INFO] [REGISTER] Success → Asset ID: CLG-001 | Status: created
+2026-03-06 13:30:58,020 [INFO] Registration complete. Sending heartbeat every 300s.
