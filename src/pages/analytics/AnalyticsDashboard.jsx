@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
-import { AlertTriangle, Brain } from 'lucide-react';
-import { consumptionHistory, demandForecast, forecastData } from '../../data/mockData.js';
+import { AlertTriangle, Brain, Loader2 } from 'lucide-react';
+import { analyticsApi } from '../../utils/api';
 
 const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
@@ -13,17 +13,29 @@ const CustomTooltip = ({ active, payload, label }) => {
     );
 };
 
-const forecastWithPrediction = [
-    ...consumptionHistory,
-    { month: 'Feb', stationery: null, forecast_stationery: 65 },
-    { month: 'Mar', stationery: null, forecast_stationery: 55 },
-    { month: 'Apr', stationery: null, forecast_stationery: 40 },
-];
-
 export default function AnalyticsDashboard() {
     const [horizon, setHorizon] = useState('30');
+    const [harimaData, setHarimaData] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-    const fd = forecastData.find(f => f.period === `${horizon} Days`);
+    useEffect(() => {
+        let isMounted = true;
+        setLoading(true);
+        analyticsApi.harima(horizon)
+            .then(data => {
+                if (isMounted) {
+                    setHarimaData(data);
+                    setLoading(false);
+                }
+            })
+            .catch(err => {
+                console.error("HARIMA fetch error:", err);
+                if (isMounted) setLoading(false);
+            });
+        
+        return () => { isMounted = false; };
+    }, [horizon]);
+
     const anomalies = [
         { id: 1, asset: 'AST-0006 Microscope', type: 'Unauthorized Movement', risk: 'High', time: '45m ago', color: 'red' },
         { id: 2, asset: 'INV-001 Cartridges', type: 'Rapid Consumption Spike', risk: 'Medium', time: '2h ago', color: 'amber' },
@@ -32,6 +44,17 @@ export default function AnalyticsDashboard() {
 
     const riskColors = { High: 'text-red-400 bg-red-500/10 border-red-500/20', Medium: 'text-amber-400 bg-amber-500/10 border-amber-500/20', Low: 'text-zinc-300 bg-zinc-600/10 border-zinc-500/20' };
     const actionColors = { 'Reorder Now': 'text-amber-400 bg-amber-500/20', 'Monitor': 'text-zinc-300 bg-zinc-600/20', 'OK': 'text-emerald-400 bg-emerald-500/20', 'Urgent': 'text-red-400 bg-red-500/20', 'Critical': 'text-red-400 bg-red-600/20', 'Reorder Soon': 'text-amber-400 bg-amber-500/20' };
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center p-20 space-y-4">
+                <Loader2 size={32} className="text-purple-500 animate-spin" />
+                <p className="text-slate-400">Running HARIMA prediction model...</p>
+            </div>
+        );
+    }
+
+    const { forecastData: fd, forecastWithPrediction, demandForecast } = harimaData || {};
 
     return (
         <div className="space-y-6">

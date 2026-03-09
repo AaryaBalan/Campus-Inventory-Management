@@ -40,6 +40,10 @@ router.get('/predictions/demand-forecast', authenticate, checkPermission('read',
     try { res.json(await predictiveSvc.getDemandForecast()); } catch (e) { next(e); }
 });
 
+router.get('/predictions/harima', authenticate, checkPermission('read', 'analyticsMetrics'), async (req, res, next) => {
+    try { res.json(await predictiveSvc.getHarimaPrediction(req.query.horizon)); } catch (e) { next(e); }
+});
+
 // CITRA: precise reorder timing with lead-time awareness, safety stock, velocity trend
 router.get('/predictions/reorder-timing', authenticate, checkPermission('read', 'analyticsMetrics'), async (req, res, next) => {
     try {
