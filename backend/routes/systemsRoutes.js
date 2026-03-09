@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { registerSystem, getRegisteredSystems, heartbeat } = require('./models');
+const { registerSystem, getRegisteredSystems, heartbeat } = require('../models/systemsModel');
 
 /**
  * @route   POST /api/register
