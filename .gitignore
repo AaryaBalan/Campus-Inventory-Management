@@ -7,7 +7,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 agent/build/
-agent/dist/
 agent/*.spec
 CampusAgent.spec
 
