@@ -4,7 +4,7 @@ import { useApp, ROLES } from '../../context/AppContext.jsx';
 import {
     LayoutDashboard, Package, BarChart2, ShoppingCart, TrendingUp,
     Shield, QrCode, MapPin, Warehouse, Bell, Settings, ChevronLeft, X,
-    ChevronRight, Network, Monitor,
+    ChevronRight, Network, Monitor, ReceiptText,
 } from 'lucide-react';
 
 const navItems = [
@@ -34,6 +34,7 @@ const navItems = [
     },
     { label: 'QR Scanner', icon: QrCode, href: '/scanner' },
     { label: 'New Systems', icon: Monitor, href: '/network/new-systems' },
+    { label: 'Bill Extractor', icon: ReceiptText, href: '/bills' },
 ];
 
 function NavItem({ item, collapsed, dashboardHref }) {
@@ -111,8 +112,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
                     <LogoMark />
                     {!sidebarCollapsed && (
                         <div>
-                            <p className="text-white font-bold text-sm leading-none tracking-widest">CITIL</p>
-                            <p className="text-zinc-500 text-[10px] mt-0.5">Campus Inventory Platform</p>
+                            <p className="text-white font-bold text-sm leading-none tracking-widest">CITRA</p>
+                            <p className="text-zinc-500 text-[10px] mt-0.5">Resource & Asset Intelligence</p>
                         </div>
                     )}
                 </div>
@@ -142,8 +143,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
                     <div className="flex items-center gap-3">
                         <LogoMark />
                         <div>
-                            <p className="text-white font-bold text-sm leading-none tracking-widest">CITIL</p>
-                            <p className="text-zinc-500 text-[10px] mt-0.5">Campus Inventory Platform</p>
+                            <p className="text-white font-bold text-sm leading-none tracking-widest">CITRA</p>
+                            <p className="text-zinc-500 text-[10px] mt-0.5">Resource & Asset Intelligence</p>
                         </div>
                     </div>
                     <button onClick={onMobileClose} className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-500">

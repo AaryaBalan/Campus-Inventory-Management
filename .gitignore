@@ -13,3 +13,13 @@ CampusAgent.spec
 # OS
 .DS_Store
 Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Backend secrets — NEVER commit these
+backend/.env
+backend/serviceAccountKey.json
+backend/node_modules/

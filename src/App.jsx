@@ -24,6 +24,8 @@ import ReportGenerator from './pages/compliance/ReportGenerator.jsx';
 import QRScanner from './pages/scanner/QRScanner.jsx';
 import BuildingIPMapping from './pages/network/BuildingIPMapping.jsx';
 import NewSystems from './pages/network/NewSystems.jsx';
+import BillExtractor from './pages/bills/BillExtractor.jsx';
+import AuditMode from './pages/audit/AuditMode.jsx';
 
 const ProtectedRoute = ({ children }) => {
   const { currentUser } = useApp();
@@ -31,13 +33,13 @@ const ProtectedRoute = ({ children }) => {
 };
 
 export default function App() {
-  const { currentUser } = useApp();
+  const { currentUser, getDashboardRoute } = useApp();
 
   return (
     <div className="min-h-screen bg-[#0e0e11] text-slate-100 dark:bg-[#0e0e11] dark:text-slate-100">
       <Routes>
-        <Route path="/login" element={currentUser ? <Navigate to="/dashboard/admin" replace /> : <LoginPage />} />
-        <Route path="/" element={<Navigate to={currentUser ? '/dashboard/admin' : '/login'} replace />} />
+        <Route path="/login" element={currentUser ? <Navigate to={getDashboardRoute(currentUser.role)} replace /> : <LoginPage />} />
+        <Route path="/" element={<Navigate to={currentUser ? getDashboardRoute(currentUser.role) : '/login'} replace />} />
 
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route path="dashboard/admin" element={<AdminDashboard />} />
@@ -70,6 +72,10 @@ export default function App() {
 
           <Route path="network/ip-mapping" element={<BuildingIPMapping />} />
           <Route path="network/new-systems" element={<NewSystems />} />
+          <Route path="bills" element={<BillExtractor />} />
+
+          {/* CITRA Audit Mode */}
+          <Route path="audit" element={<AuditMode />} />
         </Route>
       </Routes>
     </div>
