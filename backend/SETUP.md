@@ -77,12 +77,12 @@ Health check: `GET http://localhost:5000/health`
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | admin@campus.edu | Campus@123 |
-| Finance | finance@campus.edu | Campus@123 |
-| Inventory | inventory@campus.edu | Campus@123 |
-| Dept. Head | head@campus.edu | Campus@123 |
-| Auditor | auditor@campus.edu | Campus@123 |
-| Executive | director@campus.edu | Campus@123 |
+| Admin | admin@campus.edu | campus@12345 |
+| Finance | finance@campus.edu | campus@12345 |
+| Inventory | inventory@campus.edu | campus@12345 |
+| Dept. Head | head@campus.edu | campus@12345 |
+| Auditor | auditor@campus.edu | campus@12345 |
+| Executive | director@campus.edu | campus@12345 |
 
 ---
 

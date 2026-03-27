@@ -73,7 +73,7 @@ async function seedUsers() {
             try {
                 userRecord = await auth.getUserByEmail(u.email);
             } catch (_) {
-                userRecord = await auth.createUser({ email: u.email, password: 'Campus@123', displayName: u.name });
+                userRecord = await auth.createUser({ email: u.email, password: 'campus@12345', displayName: u.name });
             }
             await auth.setCustomUserClaims(userRecord.uid, { role: u.role, department: u.department || null });
             await db.collection('users').doc(userRecord.uid).set({
@@ -93,7 +93,7 @@ async function seedUsers() {
             console.warn(`   ⚠ Could not seed user ${u.email}: ${e.message}`);
         }
     }
-    console.log(`   ✓ ${results.length} users seeded (password: Campus@123)`);
+    console.log(`   ✓ ${results.length} users seeded (password: campus@12345)`);
     return results;
 }
 
@@ -180,7 +180,7 @@ async function main() {
         await seedInventory();
         await seedAlerts();
         console.log('\n✅ Seed complete! You can now log in with:\n');
-        USERS.forEach(u => console.log(`   ${u.role.padEnd(12)} → ${u.email}  /  Campus@123`));
+        USERS.forEach(u => console.log(`   ${u.role.padEnd(12)} → ${u.email}  /  campus@12345`));
         console.log();
         process.exit(0);
     } catch (e) {

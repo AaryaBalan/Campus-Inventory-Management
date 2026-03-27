@@ -43,7 +43,7 @@ async function main() {
                     console.log(`       Creating user ${u.email}...`);
                     const newRecord = await auth.createUser({
                         email: u.email,
-                        password: 'Campus@123',
+                        password: 'campus@12345',
                         displayName: u.email.split('@')[0],
                     });
                     await auth.setCustomUserClaims(newRecord.uid, {
