@@ -72,6 +72,8 @@ async function seedUsers() {
             let userRecord;
             try {
                 userRecord = await auth.getUserByEmail(u.email);
+                // Force update password for existing users
+                await auth.updateUser(userRecord.uid, { password: 'campus@12345' });
             } catch (_) {
                 userRecord = await auth.createUser({ email: u.email, password: 'campus@12345', displayName: u.name });
             }
